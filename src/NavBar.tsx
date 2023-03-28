@@ -44,6 +44,8 @@ const ResponsiveAppBar = () => {
     setAnchorElUser(null);
   };
 
+  const savedItem = JSON.parse(localStorage.getItem("userName"));
+
   const navigate = useNavigate();
 
   return (
@@ -65,7 +67,6 @@ const ResponsiveAppBar = () => {
           >
             <Calculate />
           </Typography>
-
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" } }}>
             <IconButton
               size="large"
@@ -147,6 +148,15 @@ const ResponsiveAppBar = () => {
               );
             })}
           </Box>
+          <Box>
+            {" "}
+            {savedItem ? (
+              <Typography>Welcome {savedItem} </Typography>
+            ) : (
+              <Typography>Login Here :</Typography>
+            )}
+          </Box>
+
           <Box sx={{ flexGrow: 0 }}>
             <Tooltip title="Open settings">
               <SettingsIconButton
