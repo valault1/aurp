@@ -4,9 +4,8 @@ import * as React from "react";
 
 export const SettingsPage = () => {
   const [userName, setUserName] = React.useState(() => {
-    const savedItem = localStorage.getItem("userName");
-    const parsedItem = JSON.parse(savedItem);
-    return parsedItem || "";
+    const savedItem = JSON.parse(localStorage.getItem("userName"));
+    return savedItem || "";
   });
 
   const handleUserName = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -28,7 +27,6 @@ export const SettingsPage = () => {
           variant="standard"
           value={userName}
           onChange={handleUserName}
-          // disabled={gameStarted}
         />
       </Box>
     </MainContainer>
