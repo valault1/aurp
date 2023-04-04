@@ -16,6 +16,7 @@ import { Calculate, Settings } from "@mui/icons-material";
 import { theme } from "./components/theme/theme";
 import { CONSTANT_ROUTES, getRoute, NAVBAR_PAGES } from "./AppRoutes";
 import styled from "@emotion/styled";
+import { UserContext } from "shared/UserContext";
 const settings = ["Profile", "Account", "Dashboard", "Logout"];
 
 const SettingsIconButton = styled(IconButton)<{}>({
@@ -44,9 +45,9 @@ const ResponsiveAppBar = () => {
     setAnchorElUser(null);
   };
 
-  const savedItem = JSON.parse(localStorage.getItem("userName"));
-
   const navigate = useNavigate();
+
+  const { user } = React.useContext(UserContext);
 
   return (
     <AppBar
@@ -149,11 +150,13 @@ const ResponsiveAppBar = () => {
             })}
           </Box>
           <Box>
-            {" "}
-            {savedItem ? (
-              <Typography>Welcome {savedItem} </Typography>
-            ) : (
-              <Typography>Login Here :</Typography>
+            {!!user && (
+              <>
+                {/* uncomment after figuring out size; will show the google profile pic
+                <img src={user.picture} alt="user image" /> 
+                */}
+                {user?.name}
+              </>
             )}
           </Box>
 

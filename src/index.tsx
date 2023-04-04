@@ -8,19 +8,22 @@ import "@fontsource/roboto/400.css";
 import "@fontsource/roboto/500.css";
 import "@fontsource/roboto/700.css";
 import { theme } from "./components/theme/theme";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 // Sets the background color
 document.body.style.backgroundColor = theme.colors.background;
 
 ReactDOM.render(
-  <React.StrictMode>
-    <div>
-      <link
-        rel="stylesheet"
-        href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
-      />
-      <App />
-    </div>
-  </React.StrictMode>,
+  <GoogleOAuthProvider clientId="570585081285-1rvgp5r5tr6u2ueu011etm1cksl6pe1u.apps.googleusercontent.com">
+    <React.StrictMode>
+      <div>
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"
+        />
+        <App />
+      </div>
+    </React.StrictMode>
+  </GoogleOAuthProvider>,
   document.getElementById("root")
 );
 
