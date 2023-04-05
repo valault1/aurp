@@ -18,11 +18,28 @@ const getExpiresAt = (expiresIn: number) => {
   t.setSeconds(t.getSeconds() + expiresIn);
   return t;
 };
+
+const USER_KEY = "userInfo";
 export const useLogin = () => {
   const [accessToken, setAccessToken] = React.useState<Token | undefined>(
     undefined
   );
-  const [user, setUser] = React.useState<User>(undefined);
+
+  // Read user values from local storage
+  let initialUserValue: User = !!localStorage.getItem(USER_KEY)
+    ? JSON.parse(localStorage.getItem(USER_KEY))
+    : undefined;
+  if (initialUserValue?.expiresAt < new Date()) {
+    initialUserValue = undefined;
+  }
+
+  const [user, setUser] = React.useState<User>(initialUserValue);
+
+  // Whenever user changes, update local storage
+  React.useEffect(() => {
+    localStorage.setItem(USER_KEY, user ? JSON.stringify(user) : "");
+  }, [user]);
+
   const onLoginSuccess = (
     tokenResponse: Omit<
       TokenResponse,
@@ -59,6 +76,7 @@ export const useLogin = () => {
             name: res.data.name,
             email: res.data.email,
             picture: res.data.picture,
+            id: res.data.id,
           });
         })
         .catch((err) => console.log(err));
