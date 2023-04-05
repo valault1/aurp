@@ -6,6 +6,7 @@ module.exports = {
     "^src(.*)$": "<rootDir>/src$1",
     "^domains(.*)$": "<rootDir>/src/domains$1",
     "^components(.*)$": "<rootDir>/src/components$1",
+    "^shared(.*)$": "<rootDir>/src/shared$1",
   } 
 };
 

@@ -6,7 +6,7 @@ export type User =
       email: string;
       expiresAt: Date;
       accessToken: string;
-      scope: string;
+      scopes: string[];
       picture: string;
       id: string;
     }

@@ -4,10 +4,11 @@ import * as React from "react";
 import { useRestaurantsQuery } from "shared/hooks/useRestaurantsQuery";
 
 export const Restaurants = () => {
-  const { restaurants, tags } = useRestaurantsQuery();
+  const { restaurants } = useRestaurantsQuery();
   const [currentRestaurant, setRestaurant] = React.useState("");
 
   const generateRestaurant = () => {
+    if (restaurants.length === 0) return;
     let index = Math.floor(Math.random() * restaurants.length);
     // Make sure we don't give them the same one again
     while (

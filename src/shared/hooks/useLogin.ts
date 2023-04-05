@@ -10,7 +10,7 @@ import { User } from "shared/UserContext";
 type Token = {
   expiresAt: Date;
   accessToken: string;
-  scope: string;
+  scopes: string[];
 };
 
 const getExpiresAt = (expiresIn: number) => {
@@ -29,7 +29,7 @@ export const useLogin = () => {
   let initialUserValue: User = !!localStorage.getItem(USER_KEY)
     ? JSON.parse(localStorage.getItem(USER_KEY))
     : undefined;
-  if (initialUserValue?.expiresAt < new Date()) {
+  if (new Date(initialUserValue?.expiresAt) < new Date()) {
     initialUserValue = undefined;
   }
 
@@ -49,13 +49,14 @@ export const useLogin = () => {
     setAccessToken({
       accessToken: tokenResponse.access_token,
       expiresAt: getExpiresAt(tokenResponse.expires_in),
-      scope: tokenResponse.scope,
+      scopes: tokenResponse.scope.split(" "),
     });
   const onLoginError = (error: any) => console.log("Login Failed:", error);
 
   const login = useGoogleLogin({
     onSuccess: onLoginSuccess,
     onError: onLoginError,
+    prompt: "consent",
   });
 
   React.useEffect(() => {
