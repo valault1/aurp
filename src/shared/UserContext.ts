@@ -7,6 +7,7 @@ export type User = {
   accessToken: string;
   scope: string;
   picture: string;
+  id: string;
 };
 
 export type UserContextData = {

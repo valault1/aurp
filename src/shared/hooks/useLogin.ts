@@ -54,11 +54,13 @@ export const useLogin = () => {
           }
         )
         .then((res) => {
+          console.log({ res });
           setUser({
             ...accessToken,
             name: res.data.name,
             email: res.data.email,
             picture: res.data.picture,
+            id: res.data.id,
           });
         })
         .catch((err) => console.log(err));
