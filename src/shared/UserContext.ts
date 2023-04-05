@@ -1,14 +1,16 @@
 import { createContext } from "react";
 
-export type User = {
-  name: string;
-  email: string;
-  expiresAt: Date;
-  accessToken: string;
-  scope: string;
-  picture: string;
-  id: string;
-};
+export type User =
+  | {
+      name: string;
+      email: string;
+      expiresAt: Date;
+      accessToken: string;
+      scope: string;
+      picture: string;
+      id: string;
+    }
+  | undefined;
 
 export type UserContextData = {
   user?: User;

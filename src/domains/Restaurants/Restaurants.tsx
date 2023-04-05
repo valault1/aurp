@@ -2,16 +2,16 @@ import { Button } from "@mui/material";
 import { MainContainer } from "components/MainPage.elements";
 import * as React from "react";
 import { useRestaurantsQuery } from "shared/hooks/useRestaurantsQuery";
-import { mock_restaurants } from "./mocks";
 
 export const Restaurants = () => {
-  const { data, isLoading, hasError } = useRestaurantsQuery();
+  const { restaurants, tags } = useRestaurantsQuery();
   const [currentRestaurant, setRestaurant] = React.useState("");
+  console.log({ restaurants, tags });
 
   const generateRestaurant = () => {
-    let placeholder = Math.floor(Math.random() * mock_restaurants.length);
+    let index = Math.floor(Math.random() * restaurants.length);
 
-    setRestaurant(mock_restaurants[placeholder].name);
+    setRestaurant(restaurants[index].name);
   };
 
   return (

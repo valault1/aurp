@@ -1,6 +1,9 @@
 import axios, { AxiosResponse } from "axios";
 import * as React from "react";
-import { selectRestaurants } from "shared/selectors/selectRestaurants";
+import {
+  selectRestaurants,
+  selectTags,
+} from "shared/selectors/selectRestaurants";
 import { UserContext } from "shared/UserContext";
 
 const GOOGLE_SHEET_ID = "1SB6iJTv9u3RkHC5l7g9q2L8UeqKBt--AQNdqRUdk5UQ";
@@ -55,7 +58,19 @@ export const useRestaurantsQuery = () => {
   const hasError = !!query.error;
 
   const restaurants = React.useMemo(() => {
-    return selectRestaurants(query.data);
-  }, []);
-  return { ...query, hasError };
+    return selectRestaurants(query?.data, user?.id);
+  }, [query?.data, user?.id]);
+
+  const tags = React.useMemo(() => {
+    return selectTags(restaurants);
+  }, [restaurants]);
+
+  return {
+    isLoading: query.isLoading,
+    data: query.data,
+    error: query.error,
+    hasError,
+    restaurants,
+    tags,
+  };
 };
