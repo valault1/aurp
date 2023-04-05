@@ -56,7 +56,7 @@ export const useLogin = () => {
   const login = useGoogleLogin({
     onSuccess: onLoginSuccess,
     onError: onLoginError,
-    prompt: "consent",
+    scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
   });
 
   React.useEffect(() => {
