@@ -26,7 +26,6 @@ export const useLogin = () => {
   );
 
   // Read user values from local storage
-  console.log({ USER_KEY: localStorage.getItem(USER_KEY) });
   let initialUserValue: User = !!localStorage.getItem(USER_KEY)
     ? JSON.parse(localStorage.getItem(USER_KEY))
     : undefined;

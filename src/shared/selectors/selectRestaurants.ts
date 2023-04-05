@@ -10,7 +10,7 @@ export const selectRestaurants = (
     .filter((row) => row[0] === userId)
     .map((row) => ({
       name: row[1],
-      tags: row[2].split(","),
+      tags: row[2]?.split(",") || [],
     }));
 
   return userRestaurants;
