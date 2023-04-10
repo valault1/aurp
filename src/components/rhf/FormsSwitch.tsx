@@ -1,8 +1,6 @@
-import { FormControlLabel, FormGroup, Radio, Switch } from "@mui/material";
-import { MainContainer } from "components/MainPage.elements";
-import { TabsComponent } from "components/Tabs";
+import { FormControlLabel, FormGroup, Switch } from "@mui/material";
 import * as React from "react";
-import { Control, Controller, useForm } from "react-hook-form";
+import { Control, Controller } from "react-hook-form";
 
 export const FormsSwitch: React.VFC<{
   control: Control<any, any>;
