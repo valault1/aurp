@@ -56,6 +56,7 @@ const ResponsiveAppBar = () => {
       sx={{
         backgroundColor: theme.colors.primary,
         color: theme.colors.background,
+        height: "69px",
       }}
     >
       <Container maxWidth="xl">

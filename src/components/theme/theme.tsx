@@ -32,20 +32,16 @@ declare module "@mui/material/styles" {
   }
 }
 let myGray = "#979dac";
-let primary = "#560bad";
-//let secondary = "#C8B6FF; //Light purple color
-let secondary = "#4D96FF"; // light blue
-//let secondary = "#FFA1C9"; // Light pink
-//let secondary = "#FF008E"; // Vivid pink
-let textPrimary = "#FFFFFF";
-//let background = "#FFFFFF";
-let background = "#121213"; // Wordle background color
+let primary = "#F08080";
+let secondary = "#FFD6A5";
+let textPrimary = "#00001D";
+let background = "#F5F5FD";
 
 // Default theme object: https://mui.com/customization/default-theme/
 // My colors: https://coolors.co/palette/ffd6ff-e7c6ff-c8b6ff-b8c0ff-bbd0ff
 export const muiTheme = createTheme({
   palette: {
-    mode: "dark",
+    mode: "light",
     primary: {
       main: primary,
     },
@@ -58,7 +54,7 @@ export const muiTheme = createTheme({
 export const theme: Theme = {
   colors: {
     primary: primary,
-    primaryVariant: "#b8c0ff",
+    primaryVariant: "#FFFFFF",
     secondary: secondary,
     secondaryVariant: "#e7c6ff",
     accent: "#ffd6ff",
