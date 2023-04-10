@@ -11,58 +11,63 @@ export type FormsMultiSelectProps<T> = {
   control: Control<any, any>;
   label: string;
   name: string;
+  placeholder?: string;
   description?: string;
   descriptionPlacement?: "end" | "start" | "top" | "bottom";
   defaultValue?: T[];
   options: T[];
   getOptionLabel: (option: T) => string;
+  required?: boolean;
 };
 
 export const FormsMultiSelect = <T extends unknown>({
   control,
   label,
   name,
-  defaultValue,
   options,
   getOptionLabel,
   description = "",
+  placeholder = "",
   descriptionPlacement = "start",
+  required = false,
 }: FormsMultiSelectProps<T>): JSX.Element => {
   return (
     <Controller
       control={control}
       name={name}
-      render={({
-        field,
-        fieldState: { invalid, isTouched, isDirty, error },
-        formState,
-      }) => {
-        return (
-          <FormGroup>
-            <FormControlLabel
-              control={
-                <Autocomplete
-                  multiple
-                  id="tags-outlined"
-                  options={options}
-                  getOptionLabel={getOptionLabel}
-                  defaultValue={defaultValue}
-                  filterSelectedOptions
-                  renderInput={(params) => (
+      rules={{
+        required,
+      }}
+      render={({ field: { onChange, ..._field } }) => (
+        <FormGroup>
+          <FormControlLabel
+            label={description}
+            labelPlacement={descriptionPlacement}
+            control={
+              <Autocomplete
+                multiple
+                options={options}
+                onChange={(_, data) => {
+                  onChange(data);
+                }}
+                filterSelectedOptions
+                getOptionLabel={getOptionLabel}
+                renderInput={(params) => {
+                  return (
                     <TextField
                       {...params}
                       label={label}
-                      placeholder="Favorites"
+                      variant="standard"
+                      placeholder={placeholder}
                     />
-                  )}
-                />
-              }
-              label={description}
-              labelPlacement={descriptionPlacement}
-            />
-          </FormGroup>
-        );
-      }}
+                  );
+                }}
+                {..._field}
+              />
+            }
+          />
+        </FormGroup>
+      )}
     />
   );
 };

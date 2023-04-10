@@ -1,12 +1,6 @@
-import {
-  FormControlLabel,
-  FormGroup,
-  Radio,
-  Switch,
-  TextField,
-} from "@mui/material";
+import { FormControlLabel, FormGroup, TextField } from "@mui/material";
 import * as React from "react";
-import { Control, Controller, useForm } from "react-hook-form";
+import { Control, Controller } from "react-hook-form";
 
 export const FormsTextInput: React.VFC<{
   control: Control<any, any>;
