@@ -5,7 +5,8 @@ import {
 } from "@react-oauth/google";
 import axios from "axios";
 import * as React from "react";
-import { User } from "shared/UserContext";
+import { getUserRanges } from "shared/helpers/repository";
+import { EntitySheetRange, User } from "shared/UserContext";
 
 type Token = {
   expiresAt: Date;
@@ -51,12 +52,12 @@ export const useLogin = () => {
       expiresAt: getExpiresAt(tokenResponse.expires_in),
       scopes: tokenResponse.scope.split(" "),
     });
-  const onLoginError = (error: any) => console.log("Login Failed:", error);
+  const onLoginError = (error: any) => console.error(error);
 
   const login = useGoogleLogin({
     onSuccess: onLoginSuccess,
     onError: onLoginError,
-    scope: "https://www.googleapis.com/auth/spreadsheets.readonly",
+    scope: "https://www.googleapis.com/auth/spreadsheets",
   });
 
   React.useEffect(() => {
@@ -72,17 +73,28 @@ export const useLogin = () => {
           }
         )
         .then((res) => {
-          setUser({
+          setUser((prevUser) => ({
             ...accessToken,
             name: res.data.name,
             email: res.data.email,
             picture: res.data.picture,
             id: res.data.id,
-          });
+            ranges: prevUser?.ranges || [],
+          }));
         })
-        .catch((err) => console.log(err));
+        .catch((err) => console.error(err));
     }
   }, [accessToken]);
+
+  React.useEffect(() => {
+    if (!!user?.accessToken && !!user?.id) {
+      getUserRanges(user.id, user.accessToken)
+        .then((ranges: EntitySheetRange[]) => {
+          setUser((prevUser) => ({ ...prevUser, ranges }));
+        })
+        .catch((err) => console.error(err));
+    }
+  }, [user?.accessToken, user?.id]);
 
   const logOutFunction = () => {
     googleLogout();

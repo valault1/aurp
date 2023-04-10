@@ -1,3 +1,4 @@
+import { ManageRestaurants } from "domains/Restaurants/ManageRestaurants";
 import { Restaurants } from "domains/Restaurants/Restaurants";
 import { SettingsPage } from "domains/Settings/SettingsPage";
 import React from "react";
@@ -19,7 +20,8 @@ export const CONSTANT_ROUTES = {
 };
 
 export const NAVBAR_PAGES: NavbarPage[] = [
-  { label: "Restaurants", element: <Restaurants /> },
+  { label: "I'm hungry!", element: <Restaurants /> },
+  { label: "Manage Restaurants", element: <ManageRestaurants /> },
 ];
 export const AppRoutes: React.FC = () => {
   return (

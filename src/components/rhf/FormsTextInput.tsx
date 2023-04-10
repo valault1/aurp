@@ -12,9 +12,8 @@ export const FormsTextInput: React.VFC<{
   control: Control<any, any>;
   label: string;
   name: string;
-  labelPlacement?: "end" | "start" | "top" | "bottom";
   type?: string;
-}> = ({ control, label, name, labelPlacement = "top", type = "text" }) => {
+}> = ({ control, label, name, type = "text" }) => {
   return (
     <Controller
       control={control}
@@ -27,9 +26,8 @@ export const FormsTextInput: React.VFC<{
         return (
           <FormGroup>
             <FormControlLabel
-              control={<TextField {...field} type={type} />}
-              label={label}
-              labelPlacement={labelPlacement}
+              control={<TextField {...field} type={type} label={label} />}
+              label=""
             />
           </FormGroup>
         );
