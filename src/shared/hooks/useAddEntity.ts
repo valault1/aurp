@@ -1,16 +1,20 @@
-import axios, { AxiosResponse } from "axios";
 import * as React from "react";
-import { buildAddRestaurantRequest } from "api/requestBuilders";
+import { buildAddEntityRequest } from "api/requestBuilders";
 import { UserContext } from "shared/UserContext";
-import { Restaurant } from "shared/sharedTypes";
+import axios from "axios";
+import { EntityName } from "api/entityDefinitions";
 
-export type Mutation = {
-  data?: string[][];
+export type Mutation<T> = {
+  data?: T;
   isLoading: boolean;
   error: any;
 };
 
-export const useAddRestaurantMutation = () => {
+export function useAddEntityMutation<T>({
+  entityName,
+}: {
+  entityName: EntityName;
+}) {
   const [mutation, setMutation] = React.useState({
     data: undefined,
     isLoading: false,
@@ -18,19 +22,14 @@ export const useAddRestaurantMutation = () => {
   });
   const { user } = React.useContext(UserContext);
 
-  const addRestaurant = async ({
-    range,
-    restaurant,
-  }: {
-    range: string;
-    restaurant: Restaurant;
-  }) => {
+  const addEntity = async (entity: T) => {
     if (user) {
       setMutation((oldQuery) => ({ ...oldQuery, isLoading: true }));
-      const request = buildAddRestaurantRequest({
+      const request = buildAddEntityRequest({
         accessToken: user.accessToken,
-        range,
-        restaurant,
+        range: user.ranges?.[entityName],
+        entity,
+        entityName,
       });
       await axios.post(request.url, request.body, request.config);
     }
@@ -43,6 +42,6 @@ export const useAddRestaurantMutation = () => {
     data: mutation.data,
     error: mutation.error,
     hasError,
-    addRestaurant,
+    addEntity,
   };
-};
+}

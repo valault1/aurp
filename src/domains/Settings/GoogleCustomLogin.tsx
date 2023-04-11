@@ -4,6 +4,8 @@ import * as React from "react";
 import { useContext } from "react";
 import { UserContext } from "shared/UserContext";
 import { PrimaryButton } from "components/Form.elements";
+import { EntityName } from "typescript";
+import { ENTITY_NAMES } from "api/entityDefinitions";
 
 export const GoogleCustomLogin: React.VFC = () => {
   const { user, logOutFunction, loginFunction } = useContext(UserContext);
@@ -13,7 +15,7 @@ export const GoogleCustomLogin: React.VFC = () => {
       {user ? (
         <>
           <h2>User settings</h2>
-          <img src={user.picture} alt="user image" />
+          <img src={user.picture} alt="user" />
           <p>Name: {user.name}</p>
           <p>Email Address: {user.email}</p>
           <h2>Scopes</h2>
@@ -28,9 +30,9 @@ export const GoogleCustomLogin: React.VFC = () => {
             These are the ranges we will query on each sheet for your inputted
             info
           </div>
-          {user.ranges.map((range) => (
-            <div key={range.entityName}>
-              {range.entityName}: {range.range}
+          {ENTITY_NAMES.map((entityName) => (
+            <div key={entityName}>
+              {entityName}: {user.ranges?.[entityName]}
             </div>
           ))}
           <br />

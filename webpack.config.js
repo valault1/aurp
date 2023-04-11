@@ -41,13 +41,12 @@ const config = {
       },
       {
         test: /\.svg$/,
-        use: ['@svgr/webpack']
+        use: ["@svgr/webpack"],
       },
       {
         test: /\.(eot|svg|ttf|woff|woff2|png|jpg|gif)$/i,
         type: "asset",
       },
-
 
       // Add your rules for custom modules here
       // Learn more about loaders from https://webpack.js.org/loaders/
@@ -59,20 +58,21 @@ const config = {
       domains: path.resolve(__dirname, "src/domains/"),
       components: path.resolve(__dirname, "src/components/"),
       shared: path.resolve(__dirname, "src/shared/"),
+      api: path.resolve(__dirname, "src/api/"),
     },
     extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
     fallback: {
-      "fs": false,
-      "tls": false,
-      "net": false,
-      "path": false,
-      "zlib": false,
-      "http": false,
-      "https": false,
-      "stream": false,
-      "crypto": false,
-      "crypto-browserify": require.resolve('crypto-browserify'), //if you want to use this module also don't forget npm i crypto-browserify 
-    } 
+      fs: false,
+      tls: false,
+      net: false,
+      path: false,
+      zlib: false,
+      http: false,
+      https: false,
+      stream: false,
+      crypto: false,
+      "crypto-browserify": require.resolve("crypto-browserify"), //if you want to use this module also don't forget npm i crypto-browserify
+    },
   },
 };
 
