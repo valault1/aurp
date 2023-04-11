@@ -136,3 +136,32 @@ export const buildAddEntityRequest = ({
     values: [[JSON.stringify(entity)]],
   },
 });
+
+// We use append to insert information
+// update: https://sheets.googleapis.com/v4/spreadsheets/{spreadsheetId}/values/{range}
+export const addEntitiesUrl = (range: string, entityName: EntityName) =>
+  `${GOOGLE_SHEETS_API_ENDPOINT}/${GOOGLE_SHEET_ID}/values/${ENTITY_SHEET_NAMES[entityName]}!${range}:append?valueInputOption=RAW`;
+export const buildAddEntitiesRequest = ({
+  accessToken,
+  range,
+  entities,
+  entityName,
+}: {
+  accessToken: string;
+  range: string;
+  entities: any[];
+  entityName: EntityName;
+}): MutationInfo => ({
+  url: addEntityUrl(range, entityName),
+  config: {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  },
+  body: {
+    range: `${ENTITY_SHEET_NAMES[entityName]}!${range}`,
+    majorDimension: "COLUMNS",
+    values: [entities.map((entity) => JSON.stringify(entity))],
+  },
+});

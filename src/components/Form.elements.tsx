@@ -1,6 +1,8 @@
 import styled from "@emotion/styled";
-import { Button, ButtonProps, TextField, TextFieldProps } from "@mui/material";
+import { TextField, TextFieldProps } from "@mui/material";
 import React from "react";
+import LoadingButton from "@mui/lab/LoadingButton";
+import type { LoadingButtonProps } from "@mui/lab/LoadingButton";
 
 export const InputWrapper = styled.div(() => ({
   // for some reason, this gap doesn't show up?
@@ -47,12 +49,12 @@ export const TextInput = (props: TextFieldProps) => (
   <StyledTextInput variant="outlined" {...props} />
 );
 
-const StyledPrimaryButton = styled(Button)<{}>({});
-export const PrimaryButton = (props: ButtonProps) => (
+const StyledPrimaryButton = styled(LoadingButton)<{}>({});
+export const PrimaryButton = (props: LoadingButtonProps) => (
   <StyledPrimaryButton variant="contained" {...props} />
 );
 
-const StyledSecondaryButton = styled(Button)<{}>({});
-export const SecondaryButton = (props: ButtonProps) => (
+const StyledSecondaryButton = styled(LoadingButton)<{}>({});
+export const SecondaryButton = (props: LoadingButtonProps) => (
   <StyledSecondaryButton color="secondary" variant="contained" {...props} />
 );

@@ -21,25 +21,26 @@ export function useEntitiesQuery<T>({
   });
   const { user } = React.useContext(UserContext);
 
+  const refetch = React.useCallback(async () => {
+    setQuery((prev) => ({ ...prev, isLoading: true }));
+    let result = await getEntities({
+      accessToken: user.accessToken,
+      range: user.ranges?.[entityName],
+      entityName,
+    });
+    setQuery((prev) => ({ ...prev, data: result, isLoading: false }));
+  }, [entityName, user?.accessToken, user?.ranges]);
   React.useEffect(() => {
     if (user) {
-      setQuery((prev) => ({ ...prev, isLoading: true }));
-      getEntities({
-        accessToken: user.accessToken,
-        range: user.ranges?.[entityName],
-        entityName,
-      })
-        .then((restaurants) =>
-          setQuery((prev) => ({ ...prev, data: restaurants, isLoading: false }))
-        )
-        .catch((error) => setQuery((prev) => ({ ...prev, error })));
+      refetch();
     }
-  }, [user, entityName]);
+  }, [user, refetch]);
 
   return {
     isLoading: query.isLoading,
     data: query.data,
     error: query.error,
     restaurants: query.data,
+    refetch,
   };
 }
