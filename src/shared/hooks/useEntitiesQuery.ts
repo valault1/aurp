@@ -3,7 +3,7 @@ import { getEntities } from "api/repository";
 import * as React from "react";
 import { UserContext } from "shared/UserContext";
 
-export type RestaurantQuery<T> = {
+export type Query<T> = {
   data?: T[];
   isLoading: boolean;
   error: any;
@@ -14,7 +14,7 @@ export function useEntitiesQuery<T>({
 }: {
   entityName: EntityName;
 }) {
-  const [query, setQuery] = React.useState<RestaurantQuery<T>>({
+  const [query, setQuery] = React.useState<Query<T>>({
     data: undefined,
     isLoading: false,
     error: undefined,
@@ -26,7 +26,7 @@ export function useEntitiesQuery<T>({
       setQuery((prev) => ({ ...prev, isLoading: true }));
       getEntities({
         accessToken: user.accessToken,
-        range: user.ranges[entityName],
+        range: user.ranges?.[entityName],
         entityName,
       })
         .then((restaurants) =>

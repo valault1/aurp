@@ -4,7 +4,6 @@ import * as React from "react";
 import { useContext } from "react";
 import { UserContext } from "shared/UserContext";
 import { PrimaryButton } from "components/Form.elements";
-import { EntityName } from "typescript";
 import { ENTITY_NAMES } from "api/entityDefinitions";
 
 export const GoogleCustomLogin: React.VFC = () => {
@@ -15,7 +14,6 @@ export const GoogleCustomLogin: React.VFC = () => {
       {user ? (
         <>
           <h2>User settings</h2>
-          <img src={user.picture} alt="user" />
           <p>Name: {user.name}</p>
           <p>Email Address: {user.email}</p>
           <h2>Scopes</h2>

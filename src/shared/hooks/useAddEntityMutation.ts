@@ -31,7 +31,24 @@ export function useAddEntityMutation<T>({
         entity,
         entityName,
       });
-      await axios.post(request.url, request.body, request.config);
+      try {
+        const result = await axios.post(
+          request.url,
+          request.body,
+          request.config
+        );
+        setMutation((prev) => ({
+          ...prev,
+          isLoading: false,
+          data: result.data,
+        }));
+      } catch (error) {
+        setMutation((prev) => ({
+          ...prev,
+          isLoading: false,
+          error,
+        }));
+      }
     }
   };
 
