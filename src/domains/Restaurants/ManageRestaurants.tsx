@@ -3,7 +3,7 @@ import { MainContainer } from "components/MainPage.elements";
 import { FormsTextInput } from "components/rhf/FormsTextInput";
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { useAddEntityMutation } from "shared/hooks/useAddEntity";
+import { useAddEntityMutation } from "shared/hooks/useAddEntityMutation";
 import { Restaurant } from "shared/sharedTypes";
 
 export const ManageRestaurants = () => {
