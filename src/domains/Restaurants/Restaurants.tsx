@@ -45,7 +45,7 @@ export const Restaurants = () => {
         }}
       >
         <Box style={{ padding: 10, margin: "auto", textAlign: "center" }}>
-          <Typography> Welcome to Restaurents</Typography>
+          <Typography> Welcome to Restaurants</Typography>
           <PrimaryButton onClick={generateRestaurant}>I'm hungry</PrimaryButton>
           <Typography>
             {currentRestaurant && (

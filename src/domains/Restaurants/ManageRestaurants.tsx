@@ -19,7 +19,6 @@ export const ManageRestaurants = () => {
     React.useState<string>("");
 
   const restaurant = watch();
-  console.log(restaurant);
 
   const onSubmit = async () => {
     try {
@@ -32,7 +31,7 @@ export const ManageRestaurants = () => {
     }
   };
 
-  const validateRestaurentInput = () => {
+  const validateRestaurantInput = () => {
     return restaurant.name;
   };
 
@@ -40,7 +39,6 @@ export const ManageRestaurants = () => {
     <MainContainer>
       <Stack direction="row" spacing={2}>
         <Box>
-          {/**This form disables autocomplete on the text input*/}
           <form autoComplete="off">
             <input
               autoComplete="false"
@@ -59,7 +57,6 @@ export const ManageRestaurants = () => {
           <br />
         </Box>
         <Box>
-          {/**This form disables autocomplete on the text input*/}
           <FormsMultiSelect<string>
             control={control}
             label={"Tags"}
@@ -73,54 +70,18 @@ export const ManageRestaurants = () => {
           <br />
         </Box>
       </Stack>
-      <PrimaryButton disabled={!validateRestaurentInput()} onClick={onSubmit}>
+      <PrimaryButton disabled={!validateRestaurantInput()} onClick={onSubmit}>
         Submit
       </PrimaryButton>
       {lastSubmittedRestaurant && (
         <>
-          <br />
-          {lastSubmittedRestaurant} has been added to your list!
+          <Typography style={{ margin: 15 }}>
+            {lastSubmittedRestaurant} has been added to your list!
+          </Typography>
         </>
       )}
 
-      <Typography>
-        See All Restaurants on your list :
-        {restaurants &&
-          restaurants.map((restaurant: Restaurant) => {
-            return (
-              <Stack direction="row" spacing={0.25} margin={0.5}>
-                <Box
-                  component="span"
-                  sx={{
-                    minWidth: 200,
-                    height: 30,
-                    padding: 0.25,
-                    border: "1px solid #F08080",
-                    "&:hover": {
-                      border: "1px solid #FFD6A5",
-                    },
-                  }}
-                >
-                  {restaurant.name}
-                </Box>
-                <Box
-                  component="span"
-                  sx={{
-                    width: 200,
-                    height: 30,
-                    padding: 0.25,
-                    border: "1px solid #F08080",
-                    "&:hover": {
-                      border: "1px solid #FFD6A5",
-                    },
-                  }}
-                >
-                  {restaurant.tags}
-                </Box>
-              </Stack>
-            );
-          })}
-      </Typography>
+      <RestaurantList />
     </MainContainer>
   );
 };
