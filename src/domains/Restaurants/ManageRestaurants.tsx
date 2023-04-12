@@ -1,18 +1,19 @@
 import { Box, Stack, Typography } from "@mui/material";
+import { Restaurant } from "api/entityDefinitions";
 import { PrimaryButton } from "components/Form.elements";
 import { MainContainer } from "components/MainPage.elements";
 import { FormsMultiSelect } from "components/rhf/FormsMultiSelect";
 import { FormsTextInput } from "components/rhf/FormsTextInput";
+import { RestaurantList } from "domains/Restaurants/components/RestaurantList";
 import * as React from "react";
 import { useForm } from "react-hook-form";
-import { useAddEntityMutation } from "shared/hooks/useAddEntityMutation";
-import { Restaurant } from "shared/sharedTypes";
-import { RestaurantList } from "domains/Restaurants/components/RestaurantList";
+import { useAddEntity } from "shared/hooks/useAddEntity";
 
 export const ManageRestaurants = () => {
-  const { addEntity: addRestaurant } = useAddEntityMutation<Restaurant>({
-    entityName: "restaurant",
-  });
+  const { addEntity: addRestaurant, isLoading: isLoadingAddEntity } =
+    useAddEntity<Restaurant>({
+      entityName: "restaurant",
+    });
   const { control, watch, setValue } = useForm<Restaurant>({
     defaultValues: { name: "", tags: [] },
   });
@@ -71,7 +72,11 @@ export const ManageRestaurants = () => {
           <br />
         </Box>
       </Stack>
-      <PrimaryButton disabled={!validateRestaurantInput()} onClick={onSubmit}>
+      <PrimaryButton
+        disabled={!validateRestaurantInput()}
+        onClick={onSubmit}
+        loading={isLoadingAddEntity}
+      >
         Submit
       </PrimaryButton>
       {lastSubmittedRestaurant && (

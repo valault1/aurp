@@ -1,12 +1,12 @@
 import { Box, Paper, Typography } from "@mui/material";
-import { PrimaryButton, SecondaryButton } from "components/Form.elements";
+import { PrimaryButton } from "components/Form.elements";
 import { MainContainer } from "components/MainPage.elements";
 import * as React from "react";
-import { useEntitiesQuery } from "shared/hooks/useEntitiesQuery";
-import { Restaurant } from "shared/sharedTypes";
+import { Restaurant } from "api/entityDefinitions";
+import { useGetEntities } from "shared/hooks/useGetEntities";
 
 export const Restaurants = () => {
-  const { restaurants } = useEntitiesQuery<Restaurant>({
+  const { data: restaurants } = useGetEntities<Restaurant>({
     entityName: "restaurant",
   });
   const [currentRestaurant, setRestaurant] = React.useState("");

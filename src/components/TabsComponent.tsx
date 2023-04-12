@@ -1,7 +1,7 @@
 import styled from "@emotion/styled";
 import React from "react";
 import { theme } from "./theme/theme";
-import { Box, Tab, Tabs, Typography } from "@mui/material";
+import { Box, Tab as TabComponent, Tabs } from "@mui/material";
 
 export const TabsWrapper = styled.div(() => ({
   display: "flex",
@@ -26,11 +26,7 @@ export function TabPanel(props: TabPanelProps) {
       aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
-      {value === index && (
-        <Box sx={{ p: 3 }}>
-          <Typography>{children}</Typography>
-        </Box>
-      )}
+      {value === index && <Box>{children}</Box>}
     </div>
   );
 }
@@ -65,12 +61,12 @@ export const TabsComponent = ({ tabs, ariaLabel }: TabsProps) => {
         aria-label={ariaLabel}
       >
         {tabs.map((tab, index) => (
-          <Tab label={tab.label} {...a11yProps(index)} />
+          <TabComponent label={tab.label} key={tab.id} {...a11yProps(index)} />
         ))}
       </Tabs>
       <TabsWrapper>
         {tabs.map((tab, index) => (
-          <TabPanel value={value} index={index}>
+          <TabPanel value={value} index={index} key={tab.id}>
             {tab.component}
           </TabPanel>
         ))}

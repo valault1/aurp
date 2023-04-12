@@ -3,10 +3,8 @@
 import axios from "axios";
 import {
   buildGetEntitiesQuery,
-  buildGetRestaurantsRequest,
   buildUserRangeQuery,
 } from "api/requestBuilders";
-import { Restaurant } from "shared/sharedTypes";
 import {
   EntityName,
   EntitySheetRange,
@@ -15,10 +13,13 @@ import {
 
 let EXCEL_RANGES = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
-export const getUserRanges = async (
-  userId: string,
-  accessToken: string
-): Promise<EntitySheetRange | undefined> => {
+export const getUserRanges = async ({
+  userId,
+  accessToken,
+}: {
+  userId: string;
+  accessToken: string;
+}): Promise<EntitySheetRange | undefined> => {
   const queries = ENTITY_NAMES.map((entityName) => {
     return buildUserRangeQuery(entityName as EntityName, accessToken);
   });
@@ -38,27 +39,6 @@ export const getUserRanges = async (
   }
 
   return allRanges;
-};
-
-export const getRestaurants = async (
-  accessToken: string,
-  range: string
-): Promise<Restaurant[]> => {
-  const query = buildGetRestaurantsRequest(accessToken, range);
-  let result = await axios.get(query.url, query.config);
-  let values = result.data?.values;
-
-  if (!values) return [];
-  const cleanedValues: string[] = values.filter((value: any) => {
-    try {
-      JSON.parse(value);
-      return true;
-    } catch (err) {
-      return false;
-    }
-  });
-
-  return cleanedValues.map((raw: string) => JSON.parse(raw));
 };
 
 export const getEntities = async ({

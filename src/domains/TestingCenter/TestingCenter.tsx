@@ -1,9 +1,8 @@
 import { PrimaryButton, TextInput } from "components/Form.elements";
 import { MainContainer } from "components/MainPage.elements";
 import * as React from "react";
-import { useAddEntitiesMutation } from "shared/hooks/useAddEntitiesMutation";
-import { useEntitiesQuery } from "shared/hooks/useEntitiesQuery";
-import { Transaction } from "shared/sharedTypes";
+import { useAddEntities } from "shared/hooks/useAddEntities";
+import { useGetEntities } from "shared/hooks/useGetEntities";
 import { useToasts } from "react-toast-notifications";
 import {
   addRandomEntities,
@@ -12,6 +11,7 @@ import {
 } from "domains/TestingCenter/testHelpers";
 import { Card } from "@mui/material";
 import styled from "@emotion/styled";
+import { Transaction } from "api/entityDefinitions";
 
 const TestingCenterWrapper = styled.div(() => ({
   display: "flex",
@@ -32,12 +32,12 @@ const ModuleWrapper = styled(Card)(() => ({
 export const TestingCenter = () => {
   const { addToast } = useToasts();
   const { addEntities, isLoading: isLoadingAddEntities } =
-    useAddEntitiesMutation<Transaction>({
+    useAddEntities<Transaction>({
       entityName: "transaction",
     });
 
   const { refetch, isLoading: isLoadingEntitiesQuery } =
-    useEntitiesQuery<Transaction>({
+    useGetEntities<Transaction>({
       entityName: "transaction",
     });
 

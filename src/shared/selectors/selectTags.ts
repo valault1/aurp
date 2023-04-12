@@ -1,4 +1,4 @@
-import { Restaurant } from "shared/sharedTypes";
+import { Restaurant } from "api/entityDefinitions";
 
 export const selectTags = (restaurants: Restaurant[]) => {
   let tags: { [key: string]: boolean } = {};
