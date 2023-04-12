@@ -4,9 +4,10 @@ import {
   googleLogout,
 } from "@react-oauth/google";
 import axios from "axios";
+import { getUserRanges } from "api/repository";
 import * as React from "react";
-import { getUserRanges } from "shared/helpers/repository";
-import { EntitySheetRange, User } from "shared/UserContext";
+import { User } from "shared/UserContext";
+import { EntitySheetRange } from "api/entityDefinitions";
 
 type Token = {
   expiresAt: Date;
@@ -79,7 +80,7 @@ export const useLogin = () => {
             email: res.data.email,
             picture: res.data.picture,
             id: res.data.id,
-            ranges: prevUser?.ranges || [],
+            ranges: prevUser?.ranges,
           }));
         })
         .catch((err) => console.error(err));
@@ -89,7 +90,7 @@ export const useLogin = () => {
   React.useEffect(() => {
     if (!!user?.accessToken && !!user?.id) {
       getUserRanges(user.id, user.accessToken)
-        .then((ranges: EntitySheetRange[]) => {
+        .then((ranges: EntitySheetRange) => {
           setUser((prevUser) => ({ ...prevUser, ranges }));
         })
         .catch((err) => console.error(err));

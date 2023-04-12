@@ -1,10 +1,5 @@
 import { createContext } from "react";
-import { EntityName } from "shared/helpers/requestBuilders";
-/** EntitySheetRange is a type to represent the range that should be queried for the logged in user for each entity */
-export type EntitySheetRange = {
-  entityName: EntityName;
-  range: string;
-};
+import { EntitySheetRange } from "api/entityDefinitions";
 
 export type User =
   | {
@@ -15,7 +10,7 @@ export type User =
       scopes: string[];
       picture: string;
       id: string;
-      ranges: EntitySheetRange[];
+      ranges?: EntitySheetRange;
     }
   | undefined;
 

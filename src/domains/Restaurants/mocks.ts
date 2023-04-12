@@ -1,4 +1,4 @@
-import { Restaurant } from "./sharedTypes";
+import { Restaurant } from "shared/sharedTypes";
 
 export const mock_restaurants: Restaurant[] = [
   {

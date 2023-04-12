@@ -1,10 +1,13 @@
 import { PrimaryButton } from "components/Form.elements";
 import { MainContainer } from "components/MainPage.elements";
 import * as React from "react";
-import { useRestaurantsQuery } from "shared/hooks/useRestaurantsQuery";
+import { useEntitiesQuery } from "shared/hooks/useEntitiesQuery";
+import { Restaurant } from "shared/sharedTypes";
 
 export const Restaurants = () => {
-  const { restaurants } = useRestaurantsQuery();
+  const { restaurants } = useEntitiesQuery<Restaurant>({
+    entityName: "restaurant",
+  });
   const [currentRestaurant, setRestaurant] = React.useState("");
 
   const generateRestaurant = () => {
