@@ -1,7 +1,7 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
 import { DataGrid, GridColDef, GridValueGetterParams } from "@mui/x-data-grid";
-import { Restaurant } from "domains/Restaurants/sharedTypes";
+import { Restaurant } from "shared/sharedTypes";
 import { PrimaryButton, SecondaryButton } from "components/Form.elements";
 import { Container } from "@mui/material";
 import { useEntitiesQuery } from "shared/hooks/useEntitiesQuery";
