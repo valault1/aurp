@@ -1,4 +1,4 @@
-import { Restaurant } from "shared/sharedTypes";
+import { Restaurant } from "api/entityDefinitions";
 
 export const mock_restaurants: Restaurant[] = [
   {

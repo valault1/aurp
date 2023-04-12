@@ -1,5 +1,5 @@
 import { MainContainer } from "components/MainPage.elements";
-import { Tab, TabsComponent } from "components/Tabs";
+import { Tab, TabsComponent } from "components/TabsComponent";
 import { GoogleCustomLogin } from "domains/Settings/GoogleCustomLogin";
 import {
   AdminUserProfile,
@@ -47,7 +47,6 @@ export const SettingsPage = () => {
       ].filter((a) => !!a),
     [userIsAdmin, canSeeTestingCenter]
   );
-  console.log(tabs);
 
   return (
     <MainContainer>

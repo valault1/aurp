@@ -9,6 +9,7 @@ export const FormsTextInput: React.VFC<{
   descriptionPlacement?: "end" | "start" | "top" | "bottom";
   name: string;
   type?: string;
+  disabled?: boolean;
 }> = ({
   control,
   label,
@@ -16,6 +17,7 @@ export const FormsTextInput: React.VFC<{
   type = "text",
   description = "",
   descriptionPlacement = "start",
+  disabled,
 }) => {
   return (
     <Controller
@@ -29,7 +31,14 @@ export const FormsTextInput: React.VFC<{
         return (
           <FormGroup>
             <FormControlLabel
-              control={<TextField {...field} type={type} label={label} />}
+              control={
+                <TextField
+                  {...field}
+                  type={type}
+                  label={label}
+                  disabled={disabled}
+                />
+              }
               label={description}
               labelPlacement={descriptionPlacement}
             />

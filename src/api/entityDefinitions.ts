@@ -12,12 +12,12 @@ export type EntitySheetRange = {
   [key in EntityName]: string;
 };
 
-export type RestaurantDTO = {
+export type Restaurant = {
   name: string;
   tags: string[];
 };
 
-export type TransactionDTO = {
+export type Transaction = {
   date: Date;
   description: string;
   category: string;

@@ -88,14 +88,14 @@ export const useLogin = () => {
   }, [accessToken]);
 
   React.useEffect(() => {
-    if (!!user?.accessToken && !!user?.id) {
-      getUserRanges(user.id, user.accessToken)
+    if (!!user?.accessToken && !!user?.id && !user.ranges) {
+      getUserRanges({ userId: user.id, accessToken: user.accessToken })
         .then((ranges: EntitySheetRange) => {
           setUser((prevUser) => ({ ...prevUser, ranges }));
         })
         .catch((err) => console.error(err));
     }
-  }, [user?.accessToken, user?.id]);
+  }, [user?.accessToken, user?.id, user?.ranges]);
 
   const logOutFunction = () => {
     googleLogout();
