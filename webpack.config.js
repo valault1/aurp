@@ -61,7 +61,6 @@ const config = {
       api: path.resolve(__dirname, "src/api/"),
     },
     extensions: [".ts", ".tsx", ".js", ".jsx", ".json"],
-    
   },
 };
 
