@@ -4,10 +4,10 @@ import { DataGrid, GridColDef, GridValueGetterParams } from "@mui/x-data-grid";
 import { Restaurant } from "api/entityDefinitions";
 import { PrimaryButton, SecondaryButton } from "components/Form.elements";
 import { Container } from "@mui/material";
-import { useEntitiesQuery } from "shared/hooks/useEntitiesQuery";
+import { useGetEntities } from "shared/hooks/useGetEntities";
 
 export const RestaurantList = () => {
-  const { restaurants } = useEntitiesQuery<Restaurant>({
+  const { data: restaurants } = useGetEntities<Restaurant>({
     entityName: "restaurant",
   });
   const [visible, setVisible] = React.useState(false);
