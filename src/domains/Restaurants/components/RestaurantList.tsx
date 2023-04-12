@@ -49,7 +49,7 @@ export const RestaurantList = () => {
         {" "}
         See Your Restaurant List{" "}
       </SecondaryButton>
-      {visible && (
+      {visible && restaurants && (
         <DataGrid
           rows={rows || []}
           columns={columns}
