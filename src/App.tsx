@@ -9,7 +9,6 @@ import { useLogin } from "shared/hooks/useLogin";
 
 export default function App() {
   const { user, loginFunction, logOutFunction } = useLogin();
-
   return (
     <div
       style={{
