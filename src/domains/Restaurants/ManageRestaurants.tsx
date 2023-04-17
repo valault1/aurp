@@ -66,7 +66,6 @@ export const ManageRestaurants = () => {
             description={"What kind of food do they have?"}
             descriptionPlacement="top"
             options={["Burgers", "Pizza", "Greek"]}
-            defaultValue={["Burgers"]}
             getOptionLabel={(option: string) => option}
           />
           <br />

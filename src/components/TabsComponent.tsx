@@ -47,18 +47,37 @@ export type Tab = {
 type TabsProps = {
   tabs: Tab[];
   ariaLabel: string;
+  orientation?: "horizontal" | "vertical";
 };
 
-export const TabsComponent = ({ tabs, ariaLabel }: TabsProps) => {
+export const TabsComponent = ({
+  tabs,
+  ariaLabel,
+  orientation = "horizontal",
+}: TabsProps) => {
   const [value, setValue] = React.useState(0);
   return (
-    <Box sx={{ width: "100%", color: theme.colors.textPrimary }}>
+    <Box
+      sx={{
+        ...(orientation === "horizontal"
+          ? { width: "100%", height: "100%", flexDirection: "column" }
+          : {
+              width: "100%",
+              height: "100%",
+              flexDirection: "row",
+            }),
+        color: theme.colors.textPrimary,
+        display: "flex",
+      }}
+    >
       <Tabs
         variant="scrollable"
         scrollButtons
+        orientation={orientation}
         value={value}
         onChange={(e, newValue) => setValue(newValue)}
         aria-label={ariaLabel}
+        sx={{ borderRight: 1, borderColor: theme.colors.primary }}
       >
         {tabs.map((tab, index) => (
           <TabComponent label={tab.label} key={tab.id} {...a11yProps(index)} />

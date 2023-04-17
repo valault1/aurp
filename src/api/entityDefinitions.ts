@@ -18,7 +18,7 @@ export type Restaurant = {
 };
 
 export type Transaction = {
-  date: Date;
+  date: string;
   description: string;
   category: string;
   amount: number;

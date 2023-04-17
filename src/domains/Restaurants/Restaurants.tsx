@@ -33,6 +33,7 @@ export const Restaurants = () => {
         backgroundSize: "cover",
         position: "absolute",
         overflow: "none",
+        justifyContent: "center",
       }}
     >
       <Paper

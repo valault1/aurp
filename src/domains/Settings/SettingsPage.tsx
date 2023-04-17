@@ -54,7 +54,11 @@ export const SettingsPage = () => {
         (tabs.length <= 1 ? (
           <BasicUserProfile />
         ) : (
-          <TabsComponent tabs={tabs} ariaLabel="settingsTabs" />
+          <TabsComponent
+            tabs={tabs}
+            ariaLabel="settingsTabs"
+            orientation="vertical"
+          />
         ))}
       {!user && <GoogleCustomLogin />}
     </MainContainer>
