@@ -13,6 +13,20 @@ import {
 
 let EXCEL_RANGES = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
+const defaultValuesCleaner = (dbValues: any[]): any => {
+  if (!dbValues) return [];
+  const cleanedValues: string[] = dbValues.filter((value: any) => {
+    try {
+      JSON.parse(value);
+      return true;
+    } catch (err) {
+      return false;
+    }
+  });
+
+  return cleanedValues.map((raw: string) => JSON.parse(raw));
+};
+
 export const getUserRanges = async ({
   userId,
   accessToken,
@@ -54,15 +68,5 @@ export const getEntities = async ({
   let result = await axios.get(query.url, query.config);
   let values = result.data?.values;
 
-  if (!values) return [];
-  const cleanedValues: string[] = values.filter((value: any) => {
-    try {
-      JSON.parse(value);
-      return true;
-    } catch (err) {
-      return false;
-    }
-  });
-
-  return cleanedValues.map((raw: string) => JSON.parse(raw));
+  return defaultValuesCleaner(values);
 };

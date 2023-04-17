@@ -1,4 +1,5 @@
 import { MainContainer } from "components/MainPage.elements";
+import { Budgets } from "domains/Budgets/Budgets";
 import { ManageRestaurants } from "domains/Restaurants/ManageRestaurants";
 import { Restaurants } from "domains/Restaurants/Restaurants";
 import { SettingsPage } from "domains/Settings/SettingsPage";
@@ -28,6 +29,7 @@ export const CONSTANT_ROUTES = {
 export const NAVBAR_PAGES: NavbarPage[] = [
   { label: "I'm hungry!", element: <Restaurants /> },
   { label: "Manage Restaurants", element: <ManageRestaurants /> },
+  { label: "Budgets", element: <Budgets /> },
 ];
 export const AppRoutes: React.FC = () => {
   const { user } = useContext(UserContext);

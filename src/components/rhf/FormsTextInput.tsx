@@ -2,7 +2,7 @@ import { FormControlLabel, FormGroup, TextField } from "@mui/material";
 import * as React from "react";
 import { Control, Controller } from "react-hook-form";
 
-export const FormsTextInput: React.VFC<{
+export type FormsTextInputProps = {
   control: Control<any, any>;
   label: string;
   description?: string;
@@ -10,14 +10,20 @@ export const FormsTextInput: React.VFC<{
   name: string;
   type?: string;
   disabled?: boolean;
-}> = ({
+  startAdornment?: React.ReactNode;
+  autoFocus?: boolean;
+};
+
+export const FormsTextInput: React.VFC<FormsTextInputProps> = ({
   control,
   label,
   name,
   type = "text",
-  description = "",
-  descriptionPlacement = "start",
+  description,
+  descriptionPlacement,
   disabled,
+  startAdornment,
+  autoFocus,
 }) => {
   return (
     <Controller
@@ -37,6 +43,10 @@ export const FormsTextInput: React.VFC<{
                   type={type}
                   label={label}
                   disabled={disabled}
+                  InputProps={{
+                    startAdornment,
+                  }}
+                  autoFocus={autoFocus}
                 />
               }
               label={description}
