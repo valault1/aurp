@@ -9,4 +9,7 @@ module.exports = {
     "^shared(.*)$": "<rootDir>/src/shared$1",
     "^api(.*)$": "<rootDir>/src/api$1",
   },
+  "transform": {
+    "^.+\\.(ts|tsx)$": "ts-jest"
+  },
 };

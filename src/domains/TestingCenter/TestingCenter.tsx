@@ -3,7 +3,6 @@ import { MainContainer } from "components/MainPage.elements";
 import * as React from "react";
 import { useAddEntities } from "shared/hooks/useAddEntities";
 import { useGetEntities } from "shared/hooks/useGetEntities";
-import { useToasts } from "react-toast-notifications";
 import {
   addRandomEntities,
   functionTime,
@@ -12,6 +11,7 @@ import {
 import { Card } from "@mui/material";
 import styled from "@emotion/styled";
 import { Transaction } from "api/entityDefinitions";
+import { useToasts } from "shared/hooks/useToasts";
 
 const TestingCenterWrapper = styled.div(() => ({
   display: "flex",
@@ -68,7 +68,7 @@ export const TestingCenter = () => {
       const timeElapsed = endTime - startTime;
       addToast(`Success! took ${timeElapsed} milliseconds`);
     } catch (error) {
-      addToast("There was an error.", { appearance: "error" });
+      addToast("There was an error.", "error");
     }
   };
 
@@ -82,7 +82,7 @@ export const TestingCenter = () => {
         }),
       onSuccess: (functionTimeMs) =>
         addToast(`Success! took ${functionTimeMs} milliseconds`),
-      onError: () => addToast("There was an error.", { appearance: "error" }),
+      onError: () => addToast("There was an error.", "error"),
     });
   };
 

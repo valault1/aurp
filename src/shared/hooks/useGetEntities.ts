@@ -15,6 +15,10 @@ export function useGetEntities<T>({ entityName }: { entityName: EntityName }) {
     isLoading: false,
     error: undefined,
   });
+
+  // ONLY to be used by useDeleteEntities
+  const setEntities = (entities: T[]) =>
+    setQuery((oldQuery) => ({ ...oldQuery, data: entities }));
   const { user } = React.useContext(UserContext);
 
   const refetch = React.useCallback(async () => {
@@ -37,5 +41,7 @@ export function useGetEntities<T>({ entityName }: { entityName: EntityName }) {
     data: query.data,
     error: query.error,
     refetch,
+    // NOTE: Only to be passed in to useDeleteEntities, so the data can be reset by the result from that call.
+    setEntities,
   };
 }

@@ -4,10 +4,10 @@ import {
   googleLogout,
 } from "@react-oauth/google";
 import axios from "axios";
-import { getUserRanges } from "api/repository";
+import { getSheetIds, getUserRanges } from "api/repository";
 import * as React from "react";
 import { User } from "shared/UserContext";
-import { EntitySheetRange } from "api/entityDefinitions";
+import { EntitySheetIds, EntitySheetRanges } from "api/entityDefinitions";
 
 type Token = {
   expiresAt: Date;
@@ -90,12 +90,23 @@ export const useLogin = () => {
   React.useEffect(() => {
     if (!!user?.accessToken && !!user?.id && !user.ranges) {
       getUserRanges({ userId: user.id, accessToken: user.accessToken })
-        .then((ranges: EntitySheetRange) => {
+        .then((ranges: EntitySheetRanges) => {
           setUser((prevUser) => ({ ...prevUser, ranges }));
         })
         .catch((err) => console.error(err));
     }
   }, [user?.accessToken, user?.id, user?.ranges]);
+
+  React.useEffect(() => {
+    if (!!user?.accessToken && !!user?.id && !user.sheetIds) {
+      // Currently, this fetches twice. Because the user ranges happens, and then when the user ranges updates, it
+      getSheetIds({ accessToken: user.accessToken })
+        .then((sheetIds: EntitySheetIds) => {
+          setUser((prevUser) => ({ ...prevUser, sheetIds }));
+        })
+        .catch((err) => console.error(err));
+    }
+  }, [user?.accessToken, user?.id, user?.sheetIds]);
 
   const logOutFunction = () => {
     googleLogout();
