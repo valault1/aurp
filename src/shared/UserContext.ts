@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import { EntitySheetRange } from "api/entityDefinitions";
+import { EntitySheetIds, EntitySheetRanges } from "api/entityDefinitions";
 
 export type User =
   | {
@@ -10,7 +10,8 @@ export type User =
       scopes: string[];
       picture: string;
       id: string;
-      ranges?: EntitySheetRange;
+      ranges?: EntitySheetRanges;
+      sheetIds?: EntitySheetIds;
     }
   | undefined;
 

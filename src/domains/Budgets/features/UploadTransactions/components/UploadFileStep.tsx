@@ -6,6 +6,7 @@ import { Stack, Dialog } from "@mui/material";
 import { SecondaryButton, PrimaryButton } from "components/Form.elements";
 import UploadFileButton from "components/UploadFileButton";
 import styled from "@emotion/styled";
+import { formatCurrency } from "domains/Budgets/helpers/currencyFormatters";
 
 const csv = require("csvtojson");
 
@@ -40,7 +41,13 @@ export const UploadFileStep: React.VFC<UploadFileStepProps> = ({
       let rows = await csv({
         output: "json",
       }).fromString(text);
-      setRows(rows.map((row: any, idx: number) => ({ ...row, id: idx })));
+      setRows(
+        rows.map((row: any, idx: number) => ({
+          ...row,
+          id: idx,
+          Amount: row.Amount ? formatCurrency(row.Amount) : undefined,
+        }))
+      );
     };
     setUploadedFile(f);
     reader.readAsText(f);

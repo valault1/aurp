@@ -31,7 +31,7 @@ export const TransactionForm = () => {
   const { control, watch, reset } = useForm<Transaction>({
     defaultValues: {
       amount: 0,
-      date: format(new Date(), DATABASE_TRANSACTION_DATE_FORMAT),
+      date: new Date(),
       category: null,
       description: "",
     },
@@ -58,7 +58,6 @@ export const TransactionForm = () => {
               control={control}
               label="Date"
               name="date"
-              type="date"
               autoFocus
             />
           </InputWrapper>

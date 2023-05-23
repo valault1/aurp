@@ -1,41 +1,53 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
-import { DataGrid, GridColDef } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  GridCellEditStopParams,
+  GridCellEditStopReasons,
+  GridColDef,
+  GridRowId,
+  MuiEvent,
+} from "@mui/x-data-grid";
 import { Transaction } from "api/entityDefinitions";
 import { format } from "date-fns";
 import { TRANSACTION_DISPLAY_FORMAT } from "domains/Budgets/helpers/dateFormats";
 
 export type TransactionsTableProps = {
   transactions?: Transaction[];
+  setSelectedRows: (arr: any[]) => void;
 };
 
 export const TransactionsTable: React.VFC<TransactionsTableProps> = ({
   transactions,
+  setSelectedRows,
 }) => {
+  const editable = true;
   const columns: GridColDef[] = [
     {
       field: "date",
       headerName: "Date",
       flex: 1,
-      editable: false,
+      editable,
     },
     {
       field: "amount",
       headerName: "Amount",
       flex: 1,
-      editable: false,
+      editable,
     },
     {
       field: "category",
       headerName: "Category",
+      type: "singleSelect",
+      valueOptions: ["United Kingdom", "Spain", "Brazil"],
       flex: 1,
-      editable: false,
+      editable,
     },
     {
       field: "description",
       headerName: "Description",
       flex: 1,
-      editable: false,
+      editable,
     },
   ];
 
@@ -45,7 +57,6 @@ export const TransactionsTable: React.VFC<TransactionsTableProps> = ({
     date: format(new Date(transaction.date), TRANSACTION_DISPLAY_FORMAT),
     id: index,
   }));
-
   return (
     <Box
       sx={{
@@ -65,9 +76,18 @@ export const TransactionsTable: React.VFC<TransactionsTableProps> = ({
             },
           },
         }}
+        onCellEditStop={(params: GridCellEditStopParams, event: MuiEvent) => {
+          if (params.reason === GridCellEditStopReasons.cellFocusOut) {
+            event.defaultMuiPrevented = true;
+          }
+          console.log("they edited something.");
+          console.log({ params, event });
+        }}
         pageSizeOptions={[5]}
-        // checkboxSelection
-        disableRowSelectionOnClick
+        checkboxSelection
+        onRowSelectionModelChange={(selectedRows) => {
+          setSelectedRows(selectedRows);
+        }}
       />
     </Box>
   );
