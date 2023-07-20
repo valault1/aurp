@@ -3,9 +3,11 @@
 import axios from "axios";
 import {
   ApiSheetRange,
+  ApiSheetRangeValues,
   buildDeleteEntitiesRequest,
   buildGetEntitiesQuery,
   buildSheetIdsQuery,
+  buildUpdateEntitiesRequest,
   buildUserRangeQuery,
 } from "api/requestBuilders";
 import {
@@ -19,7 +21,7 @@ import {
 
 let EXCEL_RANGES = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
 
-const defaultValuesCleaner = (dbValues: any[]): any => {
+const defaultFetchingValuesCleaner = (dbValues: any[]): any => {
   if (!dbValues) return [];
   const cleanedValues: string[] = dbValues.filter((value: any) => {
     try {
@@ -34,6 +36,14 @@ const defaultValuesCleaner = (dbValues: any[]): any => {
     ...JSON.parse(raw),
     cellIndex: (index + 2).toString(),
   }));
+};
+
+const defaultMutatingValuesCleaner = (entityValues: Entity[]): string[] => {
+  return entityValues.map((entity: Entity, index: number) => {
+    const cleanedEntity = { ...entity };
+    delete cleanedEntity.cellIndex;
+    return JSON.stringify(cleanedEntity);
+  });
 };
 
 export const getSheetIds = async ({
@@ -103,7 +113,7 @@ export const getEntities = async ({
   let result = await axios.get(query.url, query.config);
   let values = result.data?.values;
 
-  return defaultValuesCleaner(values);
+  return defaultFetchingValuesCleaner(values);
 };
 
 // note: only combines rows (vertically).
@@ -145,12 +155,10 @@ export const consolidateRanges = (ranges: ApiSheetRange[]): ApiSheetRange[] => {
 const getRangesToDelete = <T extends Entity>({
   entities,
   entityRange,
-  entityName,
   sheetId,
 }: {
   entities: T[];
   entityRange: string;
-  entityName: EntityName;
   sheetId: string;
 }): ApiSheetRange[] => {
   // delete entities from the bottom up. This way, we don't have to worry about shifting cell indexes.
@@ -198,7 +206,6 @@ export const deleteEntities = async <T extends Entity>({
     rangesToDelete: getRangesToDelete<T>({
       entities,
       entityRange,
-      entityName,
       sheetId,
     }),
   });
@@ -212,4 +219,63 @@ export const deleteEntities = async <T extends Entity>({
   //   result.data?.updatedSpreadsheet?.sheets?.[0]?.data?.[0].rowData;
   // let values = rowData.map((row: any) => row.values[0].formattedValue);
   // return defaultValuesCleaner(values);
+};
+
+const getRangesToUpdate = <T extends Entity>({
+  entities,
+  entityRange,
+  sheetId,
+}: {
+  entities: T[];
+  entityRange: string;
+  sheetId: string;
+}): ApiSheetRangeValues[] => {
+  // sort entities. Bottom up or top down doesn't matter, so I chose top down
+  const sortedEntities = entities.sort(
+    (a, b) => Number(a.cellIndex) - Number(b.cellIndex)
+  );
+  const columnLetter = entityRange.split(":")[0].split("2")[0];
+  const columnNumber = EXCEL_RANGES.findIndex(
+    (letter) => letter === columnLetter
+  );
+
+  const ranges: ApiSheetRangeValues[] = sortedEntities.map((e) => ({
+    sheetId: Number(sheetId),
+    startRowIndex: Number(e.cellIndex) - 1,
+    endRowIndex: Number(e.cellIndex),
+    startColumnIndex: columnNumber,
+    endColumnIndex: columnNumber + 1,
+    values: defaultMutatingValuesCleaner([e]),
+  }));
+
+  return ranges;
+};
+
+export const updateEntities = async <T extends Entity>({
+  accessToken,
+  entityRange,
+  entityName,
+  entities,
+  sheetId,
+}: {
+  accessToken: string;
+  entityRange: string;
+  entityName: EntityName;
+  entities: T[];
+  sheetId: string;
+}): Promise<T[] | undefined> => {
+  const request = buildUpdateEntitiesRequest({
+    accessToken,
+    entityRange,
+    entityName,
+    rangesToUpdate: getRangesToUpdate<T>({
+      entities,
+      entityRange,
+      sheetId,
+    }),
+  });
+
+  let result = await axios.post(request.url, request.body, request.config);
+
+  return undefined;
 };

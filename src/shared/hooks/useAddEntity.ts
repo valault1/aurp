@@ -27,6 +27,8 @@ export function useAddEntity<T>({ entityName }: { entityName: EntityName }) {
         entity,
         entityName,
       });
+      console.log("sending mutation:");
+      console.log(request);
       try {
         const result = await axios.post(
           request.url,

@@ -1,6 +1,6 @@
 import { ENABLE_REFETCH_AFTER_DELETE_ENTITIES } from "api/repository";
 import { AxiosRequestConfig } from "axios";
-import { EntityName, ENTITY_SHEET_NAMES } from "./entityDefinitions";
+import { Entity, EntityName, ENTITY_SHEET_NAMES } from "./entityDefinitions";
 
 const GOOGLE_SHEET_ID = "1SB6iJTv9u3RkHC5l7g9q2L8UeqKBt--AQNdqRUdk5UQ";
 const GOOGLE_SHEETS_API_ENDPOINT =
@@ -143,6 +143,16 @@ export type ApiSheetRange = {
   endColumnIndex: number;
 };
 
+export type ApiSheetRangeValues = {
+  sheetId: number;
+  startRowIndex: number;
+  endRowIndex: number;
+  startColumnIndex: number;
+  endColumnIndex: number;
+  values: string[];
+};
+
+// uses a deleteRange request (https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#Request)
 export const deleteEntitiesUrl = () =>
   `${GOOGLE_SHEETS_API_ENDPOINT}/${GOOGLE_SHEET_ID}:batchUpdate`;
 export const buildDeleteEntitiesRequest = ({
@@ -169,6 +179,49 @@ export const buildDeleteEntitiesRequest = ({
         deleteRange: {
           range: rangeToDelete,
           shiftDimension: "ROWS",
+        },
+      })),
+    ],
+    includeSpreadsheetInResponse: false,
+    responseRanges: [`${ENTITY_SHEET_NAMES[entityName]}!${entityRange}`],
+    responseIncludeGridData: false,
+  },
+});
+
+// uses an updateCells request (https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets/request#Request)
+export const updateEntitiesUrl = () =>
+  `${GOOGLE_SHEETS_API_ENDPOINT}/${GOOGLE_SHEET_ID}:batchUpdate`;
+export const buildUpdateEntitiesRequest = ({
+  accessToken,
+  entityRange,
+  entityName,
+  rangesToUpdate,
+}: {
+  accessToken: string;
+  entityRange: string;
+  entityName: EntityName;
+  rangesToUpdate: ApiSheetRangeValues[];
+}): MutationInfo => ({
+  url: updateEntitiesUrl(),
+  config: {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
+    },
+  },
+  body: {
+    requests: [
+      ...rangesToUpdate.map((rangeToUpdate) => ({
+        updateCells: {
+          rows: rangeToUpdate.values.map((value) => ({
+            values: [{ userEnteredValue: { stringValue: value } }],
+          })),
+          fields: "userEnteredValue",
+          start: {
+            sheetId: rangeToUpdate.sheetId,
+            rowIndex: rangeToUpdate.startRowIndex,
+            columnIndex: rangeToUpdate.startColumnIndex,
+          },
         },
       })),
     ],

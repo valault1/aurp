@@ -42,13 +42,17 @@ export const TransactionForm = () => {
 
   const transaction = watch();
 
-  const onSubmit = async () => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    console.log("adding transaction ");
+    console.log({ transaction });
+    // stop page from refreshing, which it does by default on submit
+    e.preventDefault();
     await addTransaction(transaction);
     reset();
   };
 
   return (
-    <form onSubmit={onSubmit}>
+    <form onSubmit={(e) => onSubmit(e)}>
       <BudgetFormInput>
         <h2>Add a transaction</h2>
 
