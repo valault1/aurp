@@ -39,8 +39,6 @@ export const CorrectTransactionsStep = ({
             if (params.reason === GridCellEditStopReasons.cellFocusOut) {
               event.defaultMuiPrevented = true;
             }
-            console.log("they edited something.");
-            console.log({ params, event });
           }}
           checkboxSelection
           onRowSelectionModelChange={(selectedRows) => {

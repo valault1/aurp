@@ -28,7 +28,7 @@ export const Budgets = () => {
     <MainContainer>
       <TabsComponent
         tabs={tabs}
-        orientation="vertical"
+        orientation="horizontal"
         ariaLabel="budgettabs"
       />
     </MainContainer>

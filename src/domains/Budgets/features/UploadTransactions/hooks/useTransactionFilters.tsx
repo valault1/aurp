@@ -6,7 +6,7 @@ import {
 import { MintTransactionRow } from "domains/Budgets/sharedTypes";
 import * as React from "react";
 
-export const useTransactionFilters = () => {
+export const useProcessRawTransactions = () => {
   const [rawCsvRows, setRawCsvRows] = React.useState<any[]>(undefined);
   const [rowsToDelete, setRowsToDelete] = React.useState<string[]>([]);
   const processedRows: MintTransactionRow[] = React.useMemo(() => {
@@ -52,7 +52,6 @@ export const useTransactionFilters = () => {
       return transaction;
     });
   }, [correctedTransactions]);
-  console.log({ finalTransactions });
   return {
     rawCsvRows,
     setRawCsvRows,

@@ -26,6 +26,8 @@ export const SettingsPage = () => {
     [user]
   );
 
+  const canSeeTrustThisDevice = userIsAdmin;
+
   const tabs: Tab[] = React.useMemo(
     () =>
       [

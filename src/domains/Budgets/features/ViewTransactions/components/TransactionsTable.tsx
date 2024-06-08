@@ -5,6 +5,7 @@ import { Transaction } from "api/entityDefinitions";
 import { format } from "date-fns";
 import { TRANSACTION_DISPLAY_FORMAT } from "domains/Budgets/helpers/dateFormats";
 import { useToasts } from "shared/hooks/useToasts";
+import { POSSIBLE_CATEGORIES } from "domains/Budgets/helpers/constants";
 
 export type TransactionsTableProps = {
   transactions?: Transaction[];
@@ -19,25 +20,7 @@ export const TransactionsTable: React.VFC<TransactionsTableProps> = ({
 }) => {
   const editable = true;
   const { onError } = useToasts();
-  const categoryOptions = [
-    "Mortgage",
-    "Utilities",
-    "Other House",
-    "Tithing",
-    "Gas",
-    "Other Car",
-    "Eating Out",
-    "Groceries",
-    "Technology",
-    "House Things",
-    "Hanging Out",
-    "Education",
-    "Gifts",
-    "Travel",
-    "Health",
-    "Other",
-    "Rent",
-  ].sort();
+  const categoryOptions = POSSIBLE_CATEGORIES.sort();
 
   const columns: GridColDef[] = [
     {
@@ -46,7 +29,7 @@ export const TransactionsTable: React.VFC<TransactionsTableProps> = ({
       // type can be: "string" | "number" | "boolean" | "date" | "dateTime" | "singleSelect" | "actions"
       type: "date",
       valueFormatter: ({ value }) =>
-        format(new Date(value), TRANSACTION_DISPLAY_FORMAT),
+        format(Date.parse(`${value}`), TRANSACTION_DISPLAY_FORMAT),
       flex: 1,
       editable,
     },

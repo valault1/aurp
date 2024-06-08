@@ -3,6 +3,7 @@ import { buildAddEntityRequest } from "api/requestBuilders";
 import { UserContext } from "shared/UserContext";
 import axios from "axios";
 import { EntityName } from "api/entityDefinitions";
+import { addEntity } from "api/repository";
 
 export type Mutation<T> = {
   data?: T;
@@ -18,23 +19,16 @@ export function useAddEntity<T>({ entityName }: { entityName: EntityName }) {
   });
   const { user } = React.useContext(UserContext);
 
-  const addEntity = async (entity: T) => {
+  const runAddEntity = async (entity: T) => {
     if (user) {
       setMutation((oldQuery) => ({ ...oldQuery, isLoading: true }));
-      const request = buildAddEntityRequest({
-        accessToken: user.accessToken,
-        range: user.ranges?.[entityName],
-        entity,
-        entityName,
-      });
-      console.log("sending mutation:");
-      console.log(request);
       try {
-        const result = await axios.post(
-          request.url,
-          request.body,
-          request.config
-        );
+        const result = await addEntity({
+          entityName,
+          accessToken: user.accessToken,
+          newEntity: entity,
+          range: user.ranges?.[entityName],
+        });
         setMutation((prev) => ({
           ...prev,
           isLoading: false,
@@ -57,6 +51,6 @@ export function useAddEntity<T>({ entityName }: { entityName: EntityName }) {
     data: mutation.data,
     error: mutation.error,
     hasError,
-    addEntity,
+    addEntity: runAddEntity,
   };
 }

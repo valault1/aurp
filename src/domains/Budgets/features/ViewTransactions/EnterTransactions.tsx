@@ -56,7 +56,7 @@ export const EnterTransactions = () => {
 
   return (
     <EnterTransactionsWrapper>
-      <TransactionForm />
+      <TransactionForm refetchTransactions={refetch} />
       {isLoadingTransactions ? (
         <CircularProgress />
       ) : (

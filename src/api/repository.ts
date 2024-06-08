@@ -4,6 +4,7 @@ import axios from "axios";
 import {
   ApiSheetRange,
   ApiSheetRangeValues,
+  buildAddEntityRequest,
   buildDeleteEntitiesRequest,
   buildGetEntitiesQuery,
   buildSheetIdsQuery,
@@ -17,6 +18,7 @@ import {
   EntitySheetRanges,
   ENTITY_NAMES,
   ENTITY_SHEET_NAMES,
+  Transaction,
 } from "./entityDefinitions";
 
 let EXCEL_RANGES = [..."ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("")];
@@ -54,11 +56,9 @@ export const getSheetIds = async ({
   const query = buildSheetIdsQuery(accessToken);
 
   const result = await axios.get(query.url, query.config);
-  console.log({ sheetIdsQueryResult: result });
 
   let entitySheetIds: any = {};
   let sheets: any[] = result?.data?.sheets;
-  console.log({ sheets });
   for (let entityName of ENTITY_NAMES) {
     let entitySheetName = ENTITY_SHEET_NAMES[entityName];
     let entitySheet = sheets.find(
@@ -66,8 +66,6 @@ export const getSheetIds = async ({
     );
     entitySheetIds[entityName] = entitySheet.properties.sheetId;
   }
-
-  console.log({ entitySheetIds });
 
   return entitySheetIds;
 };
@@ -98,6 +96,29 @@ export const getUserRanges = async ({
   }
 
   return entitySheetRanges;
+};
+
+export const addEntity = async ({
+  entityName,
+  accessToken,
+  range,
+  newEntity,
+}: {
+  entityName: EntityName;
+  accessToken: string;
+  range: string;
+  newEntity: Entity;
+}): Promise<any> => {
+  const request = buildAddEntityRequest({
+    accessToken,
+    range,
+    entity: newEntity,
+    entityName,
+  });
+  const result = await axios.post(request.url, request.body, request.config);
+  let values = result.data?.values;
+
+  return defaultFetchingValuesCleaner(values);
 };
 
 export const getEntities = async ({
@@ -148,7 +169,6 @@ export const consolidateRanges = (ranges: ApiSheetRange[]): ApiSheetRange[] => {
     endRowIndex: range[1],
   }));
 
-  console.log({ newRanges: newRanges });
   return newRanges;
 };
 

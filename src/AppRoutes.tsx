@@ -1,5 +1,6 @@
 import { MainContainer } from "components/MainPage.elements";
 import { Budgets } from "domains/Budgets/Budgets";
+import { GameCatalogController } from "domains/GameCatalog/GameCatalogController";
 import { ManageRestaurants } from "domains/Restaurants/ManageRestaurants";
 import { Restaurants } from "domains/Restaurants/Restaurants";
 import { SettingsPage } from "domains/Settings/SettingsPage";
@@ -30,6 +31,7 @@ export const NAVBAR_PAGES: NavbarPage[] = [
   { label: "I'm hungry!", element: <Restaurants /> },
   { label: "Manage Restaurants", element: <ManageRestaurants /> },
   { label: "Budgets", element: <Budgets /> },
+  { label: "Game Catalog", element: <GameCatalogController /> },
 ];
 export const AppRoutes: React.FC = () => {
   const { user } = useContext(UserContext);

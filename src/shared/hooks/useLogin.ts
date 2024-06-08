@@ -47,12 +47,15 @@ export const useLogin = () => {
       TokenResponse,
       "error" | "error_description" | "error_uri"
     >
-  ) =>
+  ) => {
+    console.log("got token!");
+    console.log({ tokenResponse });
     setAccessToken({
       accessToken: tokenResponse.access_token,
       expiresAt: getExpiresAt(tokenResponse.expires_in),
       scopes: tokenResponse.scope.split(" "),
     });
+  };
   const onLoginError = (error: any) => console.error(error);
 
   const login = useGoogleLogin({
@@ -74,6 +77,7 @@ export const useLogin = () => {
           }
         )
         .then((res) => {
+          console.log(res);
           setUser((prevUser) => ({
             ...accessToken,
             name: res.data.name,
@@ -84,6 +88,10 @@ export const useLogin = () => {
           }));
         })
         .catch((err) => console.error(err));
+
+      //TODO: implement refresh tokens so I don't have to log in as often
+      // instructions:https://developers.google.com/identity/protocols/oauth2/javascript-implicit-flow
+      //
     }
   }, [accessToken]);
 

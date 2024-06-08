@@ -1,6 +1,7 @@
 export const ENTITY_SHEET_NAMES = {
   restaurant: "RestaurantsV2",
   transaction: "Transactions",
+  game: "Games",
 };
 
 export type EntityName = keyof typeof ENTITY_SHEET_NAMES;
@@ -18,6 +19,7 @@ export type EntitySheetIds = {
 };
 
 export type Entity = {
+  // cellIndex may not be included if the object was created here on the FE
   cellIndex?: string;
 };
 
@@ -30,8 +32,20 @@ export type Transaction = {
   date: Date;
   description: string;
   category: string;
-  mintCategory: string;
+  mintCategory?: string;
   amount: number;
   dateCreated: Date;
   account: string;
+} & Entity;
+
+export type Game = {
+  name: string;
+  description: string;
+  rules: string;
+  category: string;
+  // filters
+  minPlayers?: number;
+  maxPlayers?: number;
+  isOutside?: boolean;
+  needsDeckOfCards?: boolean;
 } & Entity;

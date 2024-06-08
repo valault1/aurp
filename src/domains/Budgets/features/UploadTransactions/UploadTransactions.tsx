@@ -4,7 +4,7 @@ import { GridColDef } from "@mui/x-data-grid";
 import { UploadFileStep } from "domains/Budgets/features/UploadTransactions/components/UploadFileStep";
 import { CorrectTransactionsStep } from "domains/Budgets/features/UploadTransactions/components/CorrectTransactionsStep";
 import { AddDescriptionsStep } from "domains/Budgets/features/UploadTransactions/components/AddDescriptionsStep";
-import { useTransactionFilters } from "domains/Budgets/features/UploadTransactions/hooks/useTransactionFilters";
+import { useProcessRawTransactions } from "domains/Budgets/features/UploadTransactions/hooks/useTransactionFilters";
 import { useAddEntities } from "shared/hooks/useAddEntities";
 import { Transaction } from "api/entityDefinitions";
 import { useToasts } from "shared/hooks/useToasts";
@@ -29,7 +29,7 @@ export const UploadTransactions = () => {
     correctedTransactions,
     setRowsToDelete,
     finalTransactions,
-  } = useTransactionFilters();
+  } = useProcessRawTransactions();
 
   const onSave = async () => {
     try {

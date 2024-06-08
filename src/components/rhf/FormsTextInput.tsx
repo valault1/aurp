@@ -12,6 +12,7 @@ export type FormsTextInputProps = {
   disabled?: boolean;
   startAdornment?: React.ReactNode;
   autoFocus?: boolean;
+  onChange?: (e: any) => any;
 };
 
 export const FormsTextInput: React.VFC<FormsTextInputProps> = ({
@@ -24,6 +25,7 @@ export const FormsTextInput: React.VFC<FormsTextInputProps> = ({
   disabled,
   startAdornment,
   autoFocus,
+  onChange,
 }) => {
   return (
     <Controller
@@ -47,6 +49,14 @@ export const FormsTextInput: React.VFC<FormsTextInputProps> = ({
                     startAdornment,
                   }}
                   autoFocus={autoFocus}
+                  {...(onChange
+                    ? {
+                        onChange: (e) => {
+                          const newVal = onChange(e);
+                          return field.onChange(newVal);
+                        },
+                      }
+                    : {})}
                 />
               }
               label={description}

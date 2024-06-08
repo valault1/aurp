@@ -33,8 +33,6 @@ export const UploadFileStep: React.VFC<UploadFileStepProps> = ({
   const [uploadedFile, setUploadedFile] = React.useState<File>(undefined);
   const [isWarningDialogOpen, setIsWarningDialogOpen] = React.useState(false);
   const processFile = (f: File) => {
-    console.log("processing file");
-    console.log({ f });
     const reader = new FileReader();
     reader.onload = async (e) => {
       const text = e.target.result;

@@ -9,6 +9,8 @@ import { PrimaryButton } from "components/Form.elements";
 import { useAddEntity } from "shared/hooks/useAddEntity";
 import { FormsDropDown } from "components/rhf/FormsDropdown";
 import { DATABASE_TRANSACTION_DATE_FORMAT } from "domains/Budgets/helpers/dateFormats";
+import { FormsDateInput } from "components/rhf/FormsDateInput";
+import { POSSIBLE_CATEGORIES } from "domains/Budgets/helpers/constants";
 
 const BudgetFormInput = styled.div(() => ({
   display: "flex",
@@ -24,10 +26,17 @@ const InputWrapper = styled.div(() => ({
 }));
 const InputsWrapper = styled.div(() => ({
   display: "flex",
-  flexDirection: "row",
+  flexDirection: "column",
+  gap: 8,
 }));
 
-export const TransactionForm = () => {
+export type TransactionFormProps = {
+  refetchTransactions: () => void;
+};
+
+export const TransactionForm: React.VFC<TransactionFormProps> = ({
+  refetchTransactions,
+}) => {
   const { control, watch, reset } = useForm<Transaction>({
     defaultValues: {
       amount: 0,
@@ -40,25 +49,31 @@ export const TransactionForm = () => {
   const { addEntity: addTransaction, isLoading: isLoadingAddTransaction } =
     useAddEntity<Transaction>({ entityName: "transaction" });
 
+  const addTransactionAndRefetch = async (t: Transaction) => {
+    await addTransaction(t);
+    await refetchTransactions?.();
+  };
+
   const transaction = watch();
+  const dbTransaction = React.useMemo(() => {
+    return { ...transaction, date: new Date(`${transaction.date}T12:00:00`) };
+  }, [transaction]);
 
   const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     console.log("adding transaction ");
-    console.log({ transaction });
+    console.log({ dbTransaction });
     // stop page from refreshing, which it does by default on submit
     e.preventDefault();
-    await addTransaction(transaction);
+    await addTransactionAndRefetch(dbTransaction);
     reset();
   };
 
   return (
     <form onSubmit={(e) => onSubmit(e)}>
       <BudgetFormInput>
-        <h2>Add a transaction</h2>
-
         <InputsWrapper>
           <InputWrapper>
-            <FormsTextInput
+            <FormsDateInput
               control={control}
               label="Date"
               name="date"
@@ -78,7 +93,7 @@ export const TransactionForm = () => {
               label="Category"
               name="category"
               getOptionLabel={(option) => option}
-              options={["Restaurants", "House things", "electronics"]}
+              options={POSSIBLE_CATEGORIES}
             />
           </InputWrapper>
           <InputWrapper>

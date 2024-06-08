@@ -42,7 +42,6 @@ export default function UploadFileButton({
   const [isDraggingFile, setIsDraggingFile] = React.useState(false);
   const onDropHandler = (ev: any) => {
     let file = ev.dataTransfer.files[0];
-    console.log({ file });
     setIsDraggingFile(false);
     ev.stopPropagation();
     ev.preventDefault();
@@ -56,14 +55,12 @@ export default function UploadFileButton({
   };
 
   const onDragEnd = (e: any) => {
-    console.log("onDragEnd");
     setIsDraggingFile(false);
 
     e.stopPropagation();
     e.preventDefault();
   };
   const onDragEnter = (e: any) => {
-    console.log("onDragEnter");
     setIsDraggingFile(true);
 
     e.stopPropagation();
