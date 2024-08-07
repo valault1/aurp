@@ -1,15 +1,4 @@
-# 🚀 Welcome to your new awesome project!
+# AURP - Almost Useless Random Projects
 
-This project has been created using **webpack-cli**, you can now run
 
-```
-npm run build
-```
-
-or
-
-```
-yarn build
-```
-
-to bundle your application
+This project contains a google sheets api that I use to mock up projects without having to host a BE anywhere. 
