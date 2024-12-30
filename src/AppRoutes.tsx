@@ -1,5 +1,6 @@
 import { MainContainer } from "components/MainPage.elements";
 import { Budgets } from "domains/Budgets/Budgets";
+import { Hangman } from "domains/Hangman/Hangman";
 import { ManageRestaurants } from "domains/Restaurants/ManageRestaurants";
 import { Restaurants } from "domains/Restaurants/Restaurants";
 import { SettingsPage } from "domains/Settings/SettingsPage";
@@ -12,6 +13,7 @@ type NavbarPage = {
   route?: string;
   isHidden?: boolean;
   element: React.ReactElement;
+  shouldRedirectIfLoggedOut?: boolean;
 };
 
 const GenericNotFound = (
@@ -30,6 +32,7 @@ export const NAVBAR_PAGES: NavbarPage[] = [
   { label: "I'm hungry!", element: <Restaurants /> },
   { label: "Manage Restaurants", element: <ManageRestaurants /> },
   { label: "Budgets", element: <Budgets /> },
+  { label: "Hangman", element: <Hangman />, shouldRedirectIfLoggedOut: false },
 ];
 export const AppRoutes: React.FC = () => {
   const { user } = useContext(UserContext);
@@ -43,7 +46,11 @@ export const AppRoutes: React.FC = () => {
         return (
           <Route
             path={path}
-            element={redirectIfLoggedOut(page.element)}
+            element={
+              page.shouldRedirectIfLoggedOut === false
+                ? page.element
+                : redirectIfLoggedOut(page.element)
+            }
             key={path}
           />
         );
