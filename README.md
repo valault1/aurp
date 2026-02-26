@@ -1,15 +1,21 @@
-# 🚀 Welcome to your new awesome project!
+# bun-react-template
 
-This project has been created using **webpack-cli**, you can now run
+To install dependencies:
 
-```
-npm run build
-```
-
-or
-
-```
-yarn build
+```bash
+bun install
 ```
 
-to bundle your application
+To start a development server:
+
+```bash
+bun dev
+```
+
+To run for production:
+
+```bash
+bun start
+```
+
+This project was created using `bun init` in bun v1.3.9. [Bun](https://bun.com) is a fast all-in-one JavaScript runtime.
