@@ -6,12 +6,11 @@ import { Login } from "@/components/Login";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { Navigation } from "@/components/Navigation";
 import { Sunset } from "./components/Sunset";
-import { AppRoutes } from "@/components/AppRoutes";
+import { TextInput } from "@/hackathons/text_input/TextInput";
 
 export function App() {
   const { isDark, toggleDarkMode } = useTheme();
   const { token, username, loading, logout } = useAuth();
-  const { token, loading, logout } = useAuth();
 
   if (loading) return <Typography>Loading...</Typography>;
 
@@ -73,9 +72,9 @@ export function App() {
             </Box>
           }
         />
+        <Route path="/text-input" element={<TextInput />} />
         <Route path="/login" element={<Login />} />
       </Routes>
-      <AppRoutes />
     </Box>
   );
 }

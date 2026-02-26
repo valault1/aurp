@@ -8,7 +8,7 @@ export function Navigation() {
   const location = useLocation();
   const { isDark, toggleDarkMode } = useTheme();
 
-  const currentTab = ["/", "/about"].includes(location.pathname)
+  const currentTab = ["/", "/about", "/darkmode", "/text-input"].includes(location.pathname)
     ? location.pathname
     : false;
 
@@ -22,6 +22,12 @@ export function Navigation() {
           value="/darkmode"
           component={Link}
           to="/darkmode"
+        />
+        <Tab
+          label="Text Input"
+          value="/text-input"
+          component={Link}
+          to="/text-input"
         />
       </Tabs>
     </Box>
