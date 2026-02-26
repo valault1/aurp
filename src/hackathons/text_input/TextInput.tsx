@@ -33,19 +33,15 @@ export function TextInput() {
         <Box sx={{ width: '100%' }}>
             <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
                 <Tabs value={value} onChange={handleChange} aria-label="bad input competition tabs">
-                    <Tab label="rearranger" />
-                    <Tab label="option 2" />
-                    <Tab label="option 3" />
+                    <Tab label="Val" />
+                    <Tab label="Bryce" />
                 </Tabs>
             </Box>
             <TabPanel value={value} index={0}>
                 <Rearranger />
             </TabPanel>
             <TabPanel value={value} index={1}>
-                <Typography variant="h5">option 2</Typography>
-            </TabPanel>
-            <TabPanel value={value} index={2}>
-                <Typography variant="h5">option 3</Typography>
+                <Typography variant="h5">Bryce</Typography>
             </TabPanel>
         </Box>
     );
