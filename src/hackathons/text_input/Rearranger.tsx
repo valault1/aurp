@@ -143,6 +143,7 @@ export function Rearranger() {
     const handleCapitalize = () => {
         if (capitalizerLetter.length === 0) return;
         const letter = capitalizerLetter[0];
+        if (!letter) return;
 
         let newChar = letter.char;
         if (/[a-z]/.test(letter.char)) {
@@ -152,9 +153,7 @@ export function Rearranger() {
                 "1": "!", "2": "@", "3": "#", "4": "$", "5": "%",
                 "6": "^", "7": "&", "8": "*", "9": "(", "0": ")"
             };
-            if (shiftMap[letter.char]) {
-                newChar = shiftMap[letter.char];
-            }
+            newChar = shiftMap[letter.char] || letter.char;
         }
 
         const newResult: LetterInfo = { id: `capitalized-${Date.now()}`, char: newChar };
@@ -289,78 +288,82 @@ export function Rearranger() {
                     </Droppable>
                 </Box>
 
-                <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.default" }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ textAlign: "center", fontWeight: "bold" }}>
-                        Conversion Machine
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mb: 2 }}>
-                        Drag a target letter and a sacrifice letter to convert.
-                        <br />
-                        40% chance sacrifice is destroyed | 30% chance sacrifice becomes target | 30% chance sacrifice becomes random
-                    </Typography>
-                    <Box sx={{ display: "flex", gap: 3, justifyContent: "center", alignItems: "center" }}>
-                        <DroppableZone id="target-zone" letters={targetLetter} title="Target Letter" placeholderText="Want" sx={{ width: 140 }} />
-                        <DroppableZone id="sacrifice-zone" letters={sacrificeLetter} title="Sacrifice Letter" placeholderText="Give" sx={{ width: 140 }} />
-                        <Button
-                            variant="contained"
-                            color="secondary"
-                            onClick={handleConvert}
-                            disabled={targetLetter.length === 0 || sacrificeLetter.length === 0}
-                            sx={{ alignSelf: "center", height: 50, mt: 2 }}
-                        >
-                            Convert
-                        </Button>
-                        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", ml: 2, minWidth: 60 }}>
-                            {conversionStatus === "success" && <CheckCircle color="green" size={32} />}
-                            {conversionStatus === "destroyed" && <XCircle color="red" size={32} />}
-                            {conversionStatus === "random" && <AlertTriangle color="orange" size={32} />}
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, justifyContent: "center" }}>
+                    <Box sx={{ flex: "1 1 300px", p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.default" }}>
+                        <Typography variant="subtitle1" gutterBottom sx={{ textAlign: "center", fontWeight: "bold" }}>
+                            Conversion Machine
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mb: 2 }}>
+                            Drag a target letter and a sacrifice letter to convert.
+                            <br />
+                            40% chance sacrifice is destroyed | 30% chance sacrifice becomes target | 30% chance sacrifice becomes random
+                        </Typography>
+                        <Box sx={{ display: "flex", flexDirection: "row", gap: 3, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
+                            <DroppableZone id="target-zone" letters={targetLetter} title="Target Letter" placeholderText="Want" sx={{ width: 140 }} />
+                            <DroppableZone id="sacrifice-zone" letters={sacrificeLetter} title="Sacrifice Letter" placeholderText="Give" sx={{ width: 140 }} />
+                            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 60 }}>
+                                <Button
+                                    variant="contained"
+                                    color="secondary"
+                                    onClick={handleConvert}
+                                    disabled={targetLetter.length === 0 || sacrificeLetter.length === 0}
+                                    sx={{ alignSelf: "center", height: 50, mt: 2 }}
+                                >
+                                    Convert
+                                </Button>
+                                <Box sx={{ display: "flex", justifyContent: "center", mt: 1 }}>
+                                    {conversionStatus === "success" && <CheckCircle color="green" size={32} />}
+                                    {conversionStatus === "destroyed" && <XCircle color="red" size={32} />}
+                                    {conversionStatus === "random" && <AlertTriangle color="orange" size={32} />}
+                                </Box>
+                            </Box>
+                            <DroppableZone id="conversion-result" letters={conversionResultLetter} title="Result" placeholderText="Collect output" sx={{ width: 140 }} />
                         </Box>
-                        <DroppableZone id="conversion-result" letters={conversionResultLetter} title="Result" placeholderText="Collect output" sx={{ width: 140, ml: 2 }} />
                     </Box>
-                </Box>
 
-                <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.default" }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ textAlign: "center", fontWeight: "bold" }}>
-                        Macrodata Refinement
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mb: 2 }}>
-                        Drag any number of tiles here and click create to get a number tile matching the count.
-                        Max 9.
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "row", gap: 3, justifyContent: "center", alignItems: "center" }}>
-                        <DroppableZone id="macrodata-zone" letters={macrodataLetter} title="Refinement Input" placeholderText="Drop items to count" sx={{ width: 240 }} />
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            onClick={handleMacrodataCreate}
-                            disabled={macrodataLetter.length === 0}
-                            sx={{ alignSelf: "center", height: 50 }}
-                        >
-                            Create ({Math.min(macrodataLetter.length, 9)})
-                        </Button>
-                        <DroppableZone id="macrodata-result" letters={macrodataResultLetter} title="Result" placeholderText="Collect output" sx={{ width: 140 }} />
+                    <Box sx={{ flex: "1 1 300px", p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.default" }}>
+                        <Typography variant="subtitle1" gutterBottom sx={{ textAlign: "center", fontWeight: "bold" }}>
+                            Macrodata Refinement
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mb: 2 }}>
+                            Drag any number of tiles here and click create to get a number tile matching the count.
+                            Max 9.
+                        </Typography>
+                        <Box sx={{ display: "flex", flexDirection: "row", gap: 3, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
+                            <DroppableZone id="macrodata-zone" letters={macrodataLetter} title="Refinement Input" placeholderText="Drop items to count" sx={{ width: 240 }} />
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={handleMacrodataCreate}
+                                disabled={macrodataLetter.length === 0}
+                                sx={{ alignSelf: "center", height: 50 }}
+                            >
+                                Create ({Math.min(macrodataLetter.length, 9)})
+                            </Button>
+                            <DroppableZone id="macrodata-result" letters={macrodataResultLetter} title="Result" placeholderText="Collect output" sx={{ width: 140 }} />
+                        </Box>
                     </Box>
-                </Box>
 
-                <Box sx={{ p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.default" }}>
-                    <Typography variant="subtitle1" gutterBottom sx={{ textAlign: "center", fontWeight: "bold" }}>
-                        Capitalizer Machine
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mb: 2 }}>
-                        Drop a lowercase letter or number here to capitalize it (e.g., a → A, 2 → @).
-                    </Typography>
-                    <Box sx={{ display: "flex", flexDirection: "row", gap: 3, justifyContent: "center", alignItems: "center" }}>
-                        <DroppableZone id="capitalizer-zone" letters={capitalizerLetter} title="Capitalizer Input" placeholderText="Drop tile here" sx={{ width: 140 }} />
-                        <Button
-                            variant="contained"
-                            color="info"
-                            onClick={handleCapitalize}
-                            disabled={capitalizerLetter.length === 0}
-                            sx={{ alignSelf: "center", height: 50 }}
-                        >
-                            Capitalize
-                        </Button>
-                        <DroppableZone id="capitalizer-result" letters={capitalizerResultLetter} title="Result" placeholderText="Collect output" sx={{ width: 140 }} />
+                    <Box sx={{ flex: "1 1 300px", p: 3, border: "1px solid", borderColor: "divider", borderRadius: 2, backgroundColor: "background.default" }}>
+                        <Typography variant="subtitle1" gutterBottom sx={{ textAlign: "center", fontWeight: "bold" }}>
+                            Capitalizer Machine
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mb: 2 }}>
+                            Drop a lowercase letter or number here to capitalize it (e.g., a → A, 2 → @).
+                        </Typography>
+                        <Box sx={{ display: "flex", flexDirection: "row", gap: 3, justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
+                            <DroppableZone id="capitalizer-zone" letters={capitalizerLetter} title="Capitalizer Input" placeholderText="Drop tile here" sx={{ width: 140 }} />
+                            <Button
+                                variant="contained"
+                                color="info"
+                                onClick={handleCapitalize}
+                                disabled={capitalizerLetter.length === 0}
+                                sx={{ alignSelf: "center", height: 50 }}
+                            >
+                                Capitalize
+                            </Button>
+                            <DroppableZone id="capitalizer-result" letters={capitalizerResultLetter} title="Result" placeholderText="Collect output" sx={{ width: 140 }} />
+                        </Box>
                     </Box>
                 </Box>
             </DragDropContext>
