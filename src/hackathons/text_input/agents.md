@@ -7,7 +7,8 @@ The goal of this project is to build a "Bad Input Competition" interface. This i
 
 ## Current State
 We have implemented the foundational scaffolding with three tabs:
-1. **Rearranger:** A drag-and-drop text input method. Users are given the alphabet (A-Z) in a bottom zone and must drag individual letters into a top input zone. They can then rearrange the letters in the top zone to spell words. Implemented using `@hello-pangea/dnd` for smooth React Drag and Drop functionality.
+1. **Rearranger:** A drag-and-drop text input method. Users are given the alphabet (A-Z) in a bottom zone and must drag individual letters into a top input zone. They can then rearrange the letters in the top zone to spell words. 
+   - **Conversion Machine:** Included in the Rearranger tab is a zone where users can sacrifice a letter to try and duplicate another target letter. It features a 40% chance of destroying the sacrifice, 30% chance of successfully duplicating the target, and 30% chance of returning a random letter. This uses `@hello-pangea/dnd`.
 2. **Option 2:** *Pending implementation*
 3. **Option 3:** *Pending implementation*
 
