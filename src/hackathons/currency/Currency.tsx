@@ -1,4 +1,4 @@
-import { Box } from "@mui/material";
+import { Box, useTheme, alpha } from "@mui/material";
 import { useState } from "react";
 import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
 import { ValCurrency } from "./ValCurrency";
@@ -18,6 +18,7 @@ const COMPETITORS: Competitor[] = [
 ];
 
 export function Currency() {
+    const theme = useTheme();
     const [activeCompetitorId, setActiveCompetitorId] = useState<string>("val");
     const [activeIterationId, setActiveIterationId] = useState<string>("v1");
 
@@ -40,12 +41,12 @@ export function Currency() {
                     <Box sx={{ minHeight: "60vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
                         {activeIterationId === "v1" && <ValCurrency />}
                         {activeIterationId === "v2" && (
-                            <Box sx={{ p: 4, textAlign: "center", border: "1px dashed rgba(255,255,255,0.2)", borderRadius: 4, color: "text.secondary" }}>
+                            <Box sx={{ p: 4, textAlign: "center", border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`, borderRadius: 4, color: "text.secondary" }}>
                                 Val Currency Iteration v2 Placeholder
                             </Box>
                         )}
                         {activeIterationId === "v3" && (
-                            <Box sx={{ p: 4, textAlign: "center", border: "1px dashed rgba(255,255,255,0.2)", borderRadius: 4, color: "text.secondary" }}>
+                            <Box sx={{ p: 4, textAlign: "center", border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`, borderRadius: 4, color: "text.secondary" }}>
                                 Val Currency Iteration v3 Placeholder
                             </Box>
                         )}
@@ -56,12 +57,12 @@ export function Currency() {
                     <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
                         {activeIterationId === "v1" && <BryceCurrency />}
                         {activeIterationId === "v2" && (
-                            <Box sx={{ p: 4, textAlign: "center", border: "1px dashed rgba(255,255,255,0.2)", borderRadius: 4, color: "text.secondary" }}>
+                            <Box sx={{ p: 4, textAlign: "center", border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`, borderRadius: 4, color: "text.secondary" }}>
                                 Bryce Currency Iteration v2 Placeholder
                             </Box>
                         )}
                         {activeIterationId === "v3" && (
-                            <Box sx={{ p: 4, textAlign: "center", border: "1px dashed rgba(255,255,255,0.2)", borderRadius: 4, color: "text.secondary" }}>
+                            <Box sx={{ p: 4, textAlign: "center", border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`, borderRadius: 4, color: "text.secondary" }}>
                                 Bryce Currency Iteration v3 Placeholder
                             </Box>
                         )}

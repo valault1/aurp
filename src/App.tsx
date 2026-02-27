@@ -1,16 +1,24 @@
-import { Routes, Route, Navigate, Link } from "react-router-dom";
-import { Box, AppBar, Toolbar, Typography, Button, Container, Paper, Chip, IconButton } from "@mui/material";
+import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import { Box, AppBar, Toolbar, Typography, Button, Container, Paper, Chip, IconButton, alpha, useTheme } from "@mui/material";
 import { Settings as SettingsIcon } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Login } from "@/components/Login";
 import { Settings } from "@/components/Settings";
 import { TextInput } from "@/hackathons/text_input/TextInput";
 import { Currency } from "@/hackathons/currency/Currency";
+import { motion } from "framer-motion";
 
 export function App() {
   const { token, username, loading, logout } = useAuth();
+  const location = useLocation();
+  const theme = useTheme();
 
   if (loading) return <Typography>Loading...</Typography>;
+
+  const navItems = [
+    { label: "Text", path: "/text" },
+    { label: "Currency", path: "/currency" },
+  ];
 
   return (
     <Box
@@ -22,8 +30,8 @@ export function App() {
         color: "text.primary",
       }}
     >
-      <AppBar position="static">
-        <Toolbar>
+      <AppBar position="static" elevation={0}>
+        <Toolbar sx={{ gap: 2 }}>
           <Chip
             label="UI Reimagined"
             component={Link}
@@ -31,38 +39,68 @@ export function App() {
             clickable
             sx={{
               textDecoration: "none",
-              fontWeight: 800,
-              letterSpacing: "1px",
-              mr: 4,
-              backgroundColor: "rgba(255, 255, 255, 0.15)",
-              color: "inherit",
-              border: "1px solid rgba(255,255,255,0.3)",
+              fontWeight: location.pathname === "/about" ? 900 : 700,
+              letterSpacing: "0.5px",
+              mr: 2,
+              backgroundColor: location.pathname === "/about"
+                ? alpha(theme.palette.primary.main, 0.2)
+                : "rgba(255, 255, 255, 0.05)",
+              color: "#ffffff",
+              border: `1px solid ${location.pathname === "/about"
+                ? theme.palette.primary.main
+                : "rgba(255,255,255,0.1)"}`,
               backdropFilter: "blur(4px)",
+              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
               '&:hover': {
-                backgroundColor: "rgba(255, 255, 255, 0.25)",
+                backgroundColor: alpha(theme.palette.primary.main, 0.3),
+                transform: "translateY(-1px)",
               }
             }}
           />
-          <Box sx={{ flexGrow: 1, display: 'flex', gap: 2 }}>
-            <Button
-              color="inherit"
-              component={Link}
-              to="/text"
-              sx={{ fontWeight: "bold" }}
-            >
-              Text
-            </Button>
-            <Button
-              color="inherit"
-              component={Link}
-              to="/currency"
-              sx={{ fontWeight: "bold" }}
-            >
-              Currency
-            </Button>
+          <Box sx={{ flexGrow: 1, display: 'flex', gap: 1 }}>
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <Button
+                  key={item.path}
+                  color="inherit"
+                  component={Link}
+                  to={item.path}
+                  sx={{
+                    fontWeight: isActive ? 800 : 500,
+                    px: 3,
+                    borderRadius: "12px",
+                    position: "relative",
+                    color: isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
+                    transition: "all 0.2s ease",
+                    '&:hover': {
+                      color: "#ffffff",
+                      backgroundColor: "rgba(255, 255, 255, 0.05)",
+                    }
+                  }}
+                >
+                  {item.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="navHighlight"
+                      style={{
+                        position: "absolute",
+                        bottom: 0,
+                        left: "20%",
+                        right: "20%",
+                        height: "2px",
+                        background: theme.palette.primary.main,
+                        boxShadow: `0 0 10px ${theme.palette.primary.main}`,
+                        borderRadius: "2px",
+                      }}
+                    />
+                  )}
+                </Button>
+              );
+            })}
           </Box>
           {token && (
-            <Button color="inherit" onClick={logout} sx={{ mr: 2 }}>
+            <Button color="inherit" onClick={logout} sx={{ mr: 1, opacity: 0.7 }}>
               Logout
             </Button>
           )}
@@ -71,7 +109,11 @@ export function App() {
             color="inherit"
             component={Link}
             to="/settings"
-            aria-label="settings"
+            sx={{
+              backgroundColor: location.pathname === "/settings" ? alpha(theme.palette.primary.main, 0.1) : "transparent",
+              color: location.pathname === "/settings" ? theme.palette.primary.main : "inherit",
+              border: `1px solid ${location.pathname === "/settings" ? alpha(theme.palette.primary.main, 0.3) : "transparent"}`,
+            }}
           >
             <SettingsIcon size={20} />
           </IconButton>
