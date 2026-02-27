@@ -1,22 +1,31 @@
-import { createContext, useState, type ReactNode, useContext } from "react";
-import { ThemeProvider } from "@mui/material/styles";
-import { createAppTheme } from "@/theme";
+import { createContext, useState, useEffect, type ReactNode, useContext } from "react";
+import { ThemeProvider, CssBaseline } from "@mui/material";
+import { createAppTheme, type ThemeMode } from "@/theme";
 
 type ThemeContextType = {
-  isDark: boolean;
-  toggleDarkMode: () => void;
+  themeMode: ThemeMode;
+  setThemeMode: (mode: ThemeMode) => void;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeContextProvider({ children }: { children: ReactNode }) {
-  const [isDark, setIsDark] = useState(false);
+const VALID_THEMES: ThemeMode[] = ["ice", "midnight", "cyberpunk", "forest", "sunset"];
 
-  const toggleDarkMode = () => setIsDark(!isDark);
+export function ThemeContextProvider({ children }: { children: ReactNode }) {
+  const [themeMode, setThemeModeState] = useState<ThemeMode>(() => {
+    const saved = localStorage.getItem("app_theme") as ThemeMode;
+    return VALID_THEMES.includes(saved) ? saved : "midnight";
+  });
+
+  const setThemeMode = (mode: ThemeMode) => {
+    localStorage.setItem("app_theme", mode);
+    setThemeModeState(mode);
+  };
 
   return (
-    <ThemeProvider theme={createAppTheme(isDark)}>
-      <ThemeContext.Provider value={{ isDark, toggleDarkMode }}>
+    <ThemeProvider theme={createAppTheme(themeMode)}>
+      <CssBaseline />
+      <ThemeContext.Provider value={{ themeMode, setThemeMode }}>
         {children}
       </ThemeContext.Provider>
     </ThemeProvider>

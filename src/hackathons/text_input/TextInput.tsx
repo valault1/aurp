@@ -1,47 +1,53 @@
-import { Box, Typography, Tabs, Tab } from "@mui/material";
+import { Box } from "@mui/material";
 import { useState } from "react";
 import { Rearranger } from "./Rearranger";
 import { BattleInput } from "./BattleInput";
+import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
 
-function TabPanel(props: { children?: React.ReactNode; index: number; value: number }) {
-  const { children, value, index, ...other } = props;
-
-  return (
-    <div
-      role="tabpanel"
-      hidden={value !== index}
-      id={`simple-tabpanel-${index}`}
-      aria-labelledby={`simple-tab-${index}`}
-      {...other}
-    >
-      {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
-    </div>
-  );
-}
+const COMPETITORS: Competitor[] = [
+    {
+        id: "val",
+        name: "Val",
+        iterations: ["v1"],
+    },
+    {
+        id: "bryce",
+        name: "Bryce",
+        iterations: ["v1"],
+    },
+];
 
 export function TextInput() {
-  const [value, setValue] = useState(0);
+    const [activeCompetitorId, setActiveCompetitorId] = useState<string>("val");
+    const [activeIterationId, setActiveIterationId] = useState<string>("v1");
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
-  };
+    const handleToggleChange = (competitorId: string, iterationId: string) => {
+        setActiveCompetitorId(competitorId);
+        setActiveIterationId(iterationId);
+    };
 
-  return (
-    <Box sx={{ width: "100%" }}>
-      <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tabs value={value} onChange={handleChange} aria-label="bad input competition tabs">
-          <Tab label="Val" />
-          <Tab label="Bryce" />
-        </Tabs>
-      </Box>
-      <TabPanel value={value} index={0}>
-        <Rearranger />
-      </TabPanel>
-      <TabPanel value={value} index={1}>
-        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "80vh" }}>
-          <BattleInput />
-        </div>
-      </TabPanel>
-    </Box>
-  );
+    return (
+        <Box sx={{ width: "100%", maxWidth: "1200px", mx: "auto", p: { xs: 2, md: 4 } }}>
+            <CompetitionToggle
+                competitors={COMPETITORS}
+                activeCompetitorId={activeCompetitorId}
+                activeIterationId={activeIterationId}
+                onChange={handleToggleChange}
+            />
+
+            <Box sx={{ mt: 4 }}>
+                {activeCompetitorId === "val" && (
+                    <Box>
+                        {activeIterationId === "v1" && <Rearranger />}
+                    </Box>
+                )}
+
+                {activeCompetitorId === "bryce" && (
+                    <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
+                        {activeIterationId === "v1" && <BattleInput />}
+                    </Box>
+                )}
+            </Box>
+        </Box>
+    );
 }

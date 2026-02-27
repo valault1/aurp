@@ -210,6 +210,8 @@ export function Rearranger() {
                                             fontWeight: "bold",
                                             userSelect: "none",
                                             boxShadow: snapshot.isDragging ? 4 : 1,
+                                            border: "1px solid",
+                                            borderColor: snapshot.isDragging ? "primary.main" : "transparent",
                                             ...provided.draggableProps.style,
                                         }}
                                     >
@@ -266,10 +268,8 @@ export function Rearranger() {
                                                     display: "flex",
                                                     alignItems: "center",
                                                     justifyContent: "center",
-                                                    backgroundColor: "background.paper",
-                                                    color: "text.primary",
                                                     border: "1px solid",
-                                                    borderColor: "divider",
+                                                    borderColor: snapshot.isDragging ? "primary.main" : "divider",
                                                     borderRadius: 1,
                                                     fontWeight: "bold",
                                                     userSelect: "none",
@@ -304,7 +304,7 @@ export function Rearranger() {
                             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 60 }}>
                                 <Button
                                     variant="contained"
-                                    color="secondary"
+                                    color="primary"
                                     onClick={handleConvert}
                                     disabled={targetLetter.length === 0 || sacrificeLetter.length === 0}
                                     sx={{ alignSelf: "center", height: 50, mt: 2 }}
@@ -355,7 +355,7 @@ export function Rearranger() {
                             <DroppableZone id="capitalizer-zone" letters={capitalizerLetter} title="Capitalizer Input" placeholderText="Drop tile here" sx={{ width: 140 }} />
                             <Button
                                 variant="contained"
-                                color="info"
+                                color="primary"
                                 onClick={handleCapitalize}
                                 disabled={capitalizerLetter.length === 0}
                                 sx={{ alignSelf: "center", height: 50 }}
