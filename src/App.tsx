@@ -79,7 +79,7 @@ export function App() {
       </AppBar>
 
       <Routes>
-        <Route path="/" element={<Navigate to="/text-input" />} />
+        <Route path="/" element={<Navigate to="/text" />} />
         <Route
           path="/about"
           element={
@@ -186,7 +186,7 @@ export function App() {
                 </Typography>
                 <Button
                   variant="outlined"
-                  href="/text-input"
+                  href="/text"
                   sx={{
                     px: 6,
                     py: 2,
