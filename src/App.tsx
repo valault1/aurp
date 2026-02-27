@@ -79,19 +79,23 @@ export function App() {
                     }
                   }}
                 >
-                  {item.label}
+                  <Box component="span" sx={{ position: "relative", zIndex: 2 }}>
+                    {item.label}
+                  </Box>
                   {isActive && (
                     <motion.div
                       layoutId="navHighlight"
+                      transition={{ type: "spring", stiffness: 400, damping: 30 }}
                       style={{
                         position: "absolute",
-                        bottom: 0,
+                        bottom: "4px",
                         left: "20%",
                         right: "20%",
                         height: "2px",
                         background: theme.palette.primary.main,
                         boxShadow: `0 0 10px ${theme.palette.primary.main}`,
                         borderRadius: "2px",
+                        zIndex: 1,
                       }}
                     />
                   )}

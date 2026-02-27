@@ -31,7 +31,7 @@ export function CompetitionToggle({
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 2,
-                p: 1.5,
+                p: 1,
                 mb: 4,
                 borderRadius: "100px",
                 background: alpha(theme.palette.text.primary, 0.03),
@@ -55,8 +55,8 @@ export function CompetitionToggle({
                                 borderRadius: "100px",
                                 cursor: "pointer",
                                 zIndex: 1,
-                                transition: "color 0.3s ease",
-                                color: isActive ? "text.primary" : alpha(theme.palette.text.primary, 0.5),
+                                transition: "all 0.3s ease",
+                                color: isActive ? "text.primary" : alpha(theme.palette.text.primary, 0.4),
                                 "&:hover": {
                                     color: "text.primary",
                                 }
@@ -68,19 +68,18 @@ export function CompetitionToggle({
 
                             {isActive && (
                                 <motion.div
-                                    layoutId="activeCompetitorGlow"
+                                    layoutId="activeCompetitorUnderline"
                                     initial={false}
                                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                     style={{
                                         position: "absolute",
-                                        top: 0,
-                                        left: 0,
-                                        right: 0,
-                                        bottom: 0,
-                                        borderRadius: "100px",
-                                        background: alpha(theme.palette.text.primary, 0.08),
-                                        border: `1px solid ${alpha(theme.palette.text.primary, 0.15)}`,
-                                        boxShadow: `0 4px 15px ${alpha(theme.palette.common.black, 0.1)}`,
+                                        bottom: "4px",
+                                        left: "25%",
+                                        right: "25%",
+                                        height: "2px",
+                                        borderRadius: "2px",
+                                        background: theme.palette.primary.main,
+                                        boxShadow: `0 0 10px ${theme.palette.primary.main}`,
                                         zIndex: 1,
                                     }}
                                 />
@@ -117,10 +116,10 @@ export function CompetitionToggle({
                                             borderRadius: "100px",
                                             cursor: "pointer",
                                             transition: "all 0.2s ease",
-                                            color: isIterActive ? "primary.contrastText" : "text.secondary",
+                                            color: isIterActive ? "text.primary" : "text.secondary",
                                             "&:hover": {
                                                 color: "text.primary",
-                                                background: isIterActive ? "transparent" : alpha(theme.palette.text.primary, 0.05),
+                                                background: alpha(theme.palette.text.primary, 0.05),
                                             },
                                         }}
                                     >
@@ -130,19 +129,18 @@ export function CompetitionToggle({
 
                                         {isIterActive && (
                                             <motion.div
-                                                layoutId="activeIterationGlow"
+                                                layoutId="activeIterationUnderline"
                                                 initial={false}
                                                 transition={{ type: "spring", stiffness: 400, damping: 30 }}
                                                 style={{
                                                     position: "absolute",
-                                                    top: 0,
-                                                    left: 0,
-                                                    right: 0,
-                                                    bottom: 0,
-                                                    borderRadius: "100px",
+                                                    bottom: "2px",
+                                                    left: "20%",
+                                                    right: "20%",
+                                                    height: "2px",
+                                                    borderRadius: "2px",
                                                     background: theme.palette.primary.main,
-                                                    boxShadow: `0 4px 14px ${alpha(theme.palette.primary.main, 0.4)}`,
-                                                    border: `1px solid ${alpha(theme.palette.primary.main, 0.2)}`,
+                                                    boxShadow: `0 0 8px ${theme.palette.primary.main}`,
                                                     zIndex: 1,
                                                 }}
                                             />
