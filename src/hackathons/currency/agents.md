@@ -10,6 +10,7 @@ The goal of this competition folder is to design a unique, innovative, and poten
 - Use `Currency.tsx` to orchestrate variations. It holds the `CompetitionToggle`, which seamlessly switches between Val and Bryce and supports tracking "iterations" (e.g., v1, v2).
 - Add your logic primarily to `ValCurrency.tsx` or `BryceCurrency.tsx`, or break it out into smaller subcomponents within this folder as the components grow.
 - Add "v2", "v3" to the `COMPETITORS` array in `Currency.tsx` if you need to easily compare multiple approaches for the same person without deleting existing files.
+- **IMPORTANT**: When tracking iterations (v1, v2, etc.), export separate components from the user's file (e.g., `export function ValCurrencyV2() { ... }` in `ValCurrency.tsx`) and import them into `Currency.tsx` to render. Do not use inline `Box` placeholders inside `Currency.tsx`.
 
 ## Styling Rules
 We are using `framer-motion` for animations and strict Material UI (`@mui/material`) for base styling. We rely heavily on the global `ThemeProvider` with five distinct dark modes (`ice`, `midnight`, `cyberpunk`, `forest`, `sunset`). 

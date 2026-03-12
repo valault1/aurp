@@ -1,7 +1,7 @@
 import { Box, useTheme, alpha } from "@mui/material";
 import { useState } from "react";
 import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
-import { ValCurrency } from "./ValCurrency";
+import { ValCurrencyV1, ValCurrencyV2, ValCurrencyV3 } from "./ValCurrency";
 import { BryceCurrency } from "./BryceCurrency";
 
 const COMPETITORS: Competitor[] = [
@@ -39,17 +39,9 @@ export function Currency() {
             <Box sx={{ mt: 4 }}>
                 {activeCompetitorId === "val" && (
                     <Box sx={{ minHeight: "60vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
-                        {activeIterationId === "v1" && <ValCurrency />}
-                        {activeIterationId === "v2" && (
-                            <Box sx={{ p: 4, textAlign: "center", border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`, borderRadius: 4, color: "text.secondary" }}>
-                                Val Currency Iteration v2 Placeholder
-                            </Box>
-                        )}
-                        {activeIterationId === "v3" && (
-                            <Box sx={{ p: 4, textAlign: "center", border: `1px dashed ${alpha(theme.palette.text.primary, 0.2)}`, borderRadius: 4, color: "text.secondary" }}>
-                                Val Currency Iteration v3 Placeholder
-                            </Box>
-                        )}
+                        {activeIterationId === "v1" && <ValCurrencyV1 />}
+                        {activeIterationId === "v2" && <ValCurrencyV2 />}
+                        {activeIterationId === "v3" && <ValCurrencyV3 />}
                     </Box>
                 )}
 
