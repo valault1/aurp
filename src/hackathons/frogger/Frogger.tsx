@@ -2,7 +2,7 @@ import { Box } from "@mui/material";
 import { useState } from "react";
 import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
 import { ValFroggerV1, ValFroggerV2, ValFroggerV3 } from "./ValFrogger";
-import { BryceFroggerV1, BryceFroggerV2, BryceFroggerV3 } from "./BryceFrogger";
+import { BryceFroggerV2 } from "./BryceFrogger";
 
 const COMPETITORS: Competitor[] = [
   {
@@ -46,9 +46,9 @@ export function Frogger() {
 
         {activeCompetitorId === "bryce" && (
           <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-            {activeIterationId === "v1" && <BryceFroggerV1 />}
-            {activeIterationId === "v2" && <BryceFroggerV2 />}
-            {activeIterationId === "v3" && <BryceFroggerV3 />}
+            {activeIterationId === "v1" && <BryceFroggerV2 />}
+            {/* {activeIterationId === "v2" && <BryceFroggerV2 />} */}
+            {/* {activeIterationId === "v3" && <BryceFroggerV3 />} */}
           </Box>
         )}
       </Box>
