@@ -6,6 +6,7 @@ import { Login } from "@/components/Login";
 import { Settings } from "@/components/Settings";
 import { TextInput } from "@/hackathons/text_input/TextInput";
 import { Currency } from "@/hackathons/currency/Currency";
+import { Frogger } from "@/hackathons/frogger/Frogger";
 import { motion } from "framer-motion";
 
 export function App() {
@@ -18,6 +19,7 @@ export function App() {
   const navItems = [
     { label: "Text", path: "/text" },
     { label: "Currency", path: "/currency" },
+    { label: "Frogger", path: "/frogger" },
   ];
 
   return (
@@ -261,6 +263,7 @@ export function App() {
         />
         <Route path="/text" element={<TextInput />} />
         <Route path="/currency" element={<Currency />} />
+        <Route path="/frogger" element={<Frogger />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
