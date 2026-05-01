@@ -86,8 +86,33 @@ class RhythmFroggerSceneV2 extends Phaser.Scene {
   }
 
   create() {
-    const { gridSize, lanes, startPos } = this.level;
+    const { gridSize, lanes, startPos, goalRow } = this.level;
     this.add.grid(400, 300, 800, 600, gridSize, gridSize, 0x000000, 0, 0x333333, 0.3);
+
+    // Goal zone — highlighted strip at the top showing where to reach
+    const goalY = goalRow * gridSize;
+    const goalZone = this.add.rectangle(400, goalY - gridSize / 2, 800, gridSize, 0x00ffaa, 0.18);
+    goalZone.setDepth(1);
+    this.tweens.add({
+      targets: goalZone,
+      alpha: { from: 0.18, to: 0.45 },
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.inOut",
+    });
+    // Goal line (clear threshold)
+    const goalLine = this.add.rectangle(400, goalY, 800, 3, 0x00ffaa, 1);
+    goalLine.setDepth(2);
+    this.add
+      .text(400, goalY - gridSize / 2, "★ GOAL ★", {
+        fontSize: "20px",
+        color: "#00ffaa",
+        fontStyle: "bold",
+      })
+      .setOrigin(0.5)
+      .setDepth(3);
+
     this.player = this.add.rectangle(startPos.x, startPos.y, gridSize - 4, gridSize - 4, 0x00ff00);
     this.player.setDepth(10);
     this.obstacles = this.add.group();
@@ -110,14 +135,26 @@ class RhythmFroggerSceneV2 extends Phaser.Scene {
       paused: true,
     });
 
-    froggerEvents.on("PLAY", (seq: Command[]) => {
+    const onPlay = (seq: Command[]) => {
+      // Always snap player back to the start position when a new run begins.
+      this.player.setPosition(this.level.startPos.x, this.level.startPos.y);
+      this.tweens.killTweensOf(this.player);
       this.sequence = seq;
       this.currentStep = 0;
       this.gameState = "PLAYING";
       this.beatTimer.paused = false;
-    });
+    };
+    const onStop = () => this.resetGame();
 
-    froggerEvents.on("STOP", () => this.resetGame());
+    froggerEvents.on("PLAY", onPlay);
+    froggerEvents.on("STOP", onStop);
+
+    // Clean up listeners when scene shuts down so they don't accumulate
+    // across scene.restart() calls (which was causing stale player refs).
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      froggerEvents.off("PLAY", onPlay);
+      froggerEvents.off("STOP", onStop);
+    });
   }
 
   onBeat() {
@@ -184,14 +221,30 @@ class RhythmFroggerSceneV2 extends Phaser.Scene {
         this.endGame("SPLAT!");
       }
     });
+    // Out-of-bounds check: player has left the 800x600 play area
+    const half = this.level.gridSize / 2;
+    if (
+      this.player.x < half ||
+      this.player.x > 800 - half ||
+      this.player.y < half ||
+      this.player.y > 600 - half
+    ) {
+      this.endGame("OUT OF BOUNDS!");
+      return;
+    }
     if (this.player.y <= this.level.goalRow * this.level.gridSize) {
       this.endGame("VICTORY!");
     }
   }
 
   endGame(msg: string) {
+    if (this.gameState === "RESULT") return;
     this.gameState = "RESULT";
     this.beatTimer.paused = true;
+    // Snap player back to start so a fresh run begins from the right place,
+    // even before the user clicks Try Again.
+    this.tweens.killTweensOf(this.player);
+    this.player.setPosition(this.level.startPos.x, this.level.startPos.y);
     froggerEvents.emit("GAME_OVER", msg);
   }
 
@@ -306,6 +359,11 @@ export function BryceFroggerV2() {
           >
             <Typography variant="h1" color={status === "VICTORY!" ? "cyan" : "magenta"}>
               {status}
+            </Typography>
+            <Typography variant="body1" color="grey.400" sx={{ mt: 1 }}>
+              {status === "VICTORY!"
+                ? "You crossed the threshold!"
+                : "Frog has been reset to the start."}
             </Typography>
             <Button
               variant="contained"
