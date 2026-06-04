@@ -1,8 +1,8 @@
-import { Box, useTheme } from "@mui/material";
+import { Box } from "@mui/material";
 import { useState } from "react";
 import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
 import { ValVolumeInputV1, ValVolumeInputV2, ValVolumeInputV3 } from "./ValVolumeInput";
-import { BryceVolumeInputV1, BryceVolumeInputV2, BryceVolumeInputV3 } from "./BryceVolumeInput";
+import { BryceVolumeArea } from "./bryce/BryceVolumeArea";
 
 const COMPETITORS: Competitor[] = [
   {
@@ -13,12 +13,11 @@ const COMPETITORS: Competitor[] = [
   {
     id: "bryce",
     name: "Bryce",
-    iterations: ["v1", "v2", "v3"],
+    iterations: ["v1", "v2", "v3", "v4", "v5"],
   },
 ];
 
 export function VolumeInput() {
-  const theme = useTheme();
   const [activeCompetitorId, setActiveCompetitorId] = useState<string>("val");
   const [activeIterationId, setActiveIterationId] = useState<string>("v1");
 
@@ -45,13 +44,9 @@ export function VolumeInput() {
           </Box>
         )}
 
-        {activeCompetitorId === "bryce" && (
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "60vh" }}>
-            {activeIterationId === "v1" && <BryceVolumeInputV1 />}
-            {activeIterationId === "v2" && <BryceVolumeInputV2 />}
-            {activeIterationId === "v3" && <BryceVolumeInputV3 />}
-          </Box>
-        )}
+        {/* Bryce's area owns its own master-volume provider + global player panel,
+            so that layer never shows on Val's tabs. */}
+        {activeCompetitorId === "bryce" && <BryceVolumeArea iteration={activeIterationId} />}
       </Box>
     </Box>
   );

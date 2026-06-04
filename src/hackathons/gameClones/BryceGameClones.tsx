@@ -30,7 +30,9 @@ const MAX_POWER_TICKS = 1000;
 const MIN_SHOT_SPEED = 120;
 const MAX_SHOT_SPEED = 900;
 const BALL_DRAG_COEFFICIENT = 0.4; // lower = more friction
-const MAX_PREDICTION_DEPTH = 4; // hops shown after the first contact
+const OBJ_PREDICT_LEN = 110; // length of the object-ball prediction line
+const CUE_PREDICT_LEN = 80; // length of the cue-ball deflection line
+const AIM_SMOOTHING = 0.35; // 0 = instant, 1 = frozen; low-pass for hand jitter
 
 const POCKETS = [
   { x: PLAY_X + 8, y: PLAY_Y + 8 },
@@ -106,16 +108,25 @@ class PoolScene extends Phaser.Scene {
       this.power = 0;
     });
 
-    const onReset = () => this.scene.restart();
+    const onReset = () => {
+      // poolEvents is a module-level singleton, so a torn-down scene (e.g.
+      // React StrictMode's double-mount in dev) can leave a stale listener
+      // whose ScenePlugin manager is null. Guard before restarting.
+      if (this.scene && this.scene.manager && this.sys.isActive()) {
+        this.scene.restart();
+      }
+    };
     const onPrediction = (enabled: boolean) => {
       this.predictionEnabled = enabled;
     };
     poolEvents.on("RESET", onReset);
     poolEvents.on("PREDICTION", onPrediction);
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+    const cleanup = () => {
       poolEvents.off("RESET", onReset);
       poolEvents.off("PREDICTION", onPrediction);
-    });
+    };
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, cleanup);
+    this.events.once(Phaser.Scenes.Events.DESTROY, cleanup);
 
     poolEvents.emit("STATE", { shots: 0, remaining: this.balls.length });
   }
@@ -291,97 +302,29 @@ class PoolScene extends Phaser.Scene {
     };
   }
 
-  // Recursive cone-cascade prediction. At each hop we ray-cast for the next
-  // ball impact; on contact the moving ball continues along the line of
-  // centers, and the incoming source deflects perpendicular (90° tangent
-  // rule). Cones widen + fade with depth to convey growing uncertainty.
-  private drawPredictionCone(
-    startX: number,
-    startY: number,
-    dirX: number,
-    dirY: number,
-    depth: number,
-    incomingColor: number,
-  ) {
-    // Cone half-angle: tight at the first hop (we mostly know where the
-    // hit ball goes), then widens as compounding error grows.
-    const halfAngleDeg = 2 + (depth - 1) * 3; // 2°→5°→8°→11°
-    const halfAngleRad = (halfAngleDeg * Math.PI) / 180;
-    const alpha = Math.max(0.18, 1 - depth * 0.22);
-
-    // Terminal — just paint a fading cone in the travel direction.
-    if (depth >= MAX_PREDICTION_DEPTH) {
-      const termLen = Math.max(35, 80 - depth * 10);
-      this.drawCone(startX, startY, dirX, dirY, termLen, halfAngleRad, incomingColor, alpha);
-      return;
-    }
-
-    const hit = this.predictHit(startX, startY, dirX, dirY);
-    if (!hit) {
-      // No further contact predicted — terminal cone in current direction.
-      const termLen = Math.max(60, 150 - depth * 25);
-      this.drawCone(startX, startY, dirX, dirY, termLen, halfAngleRad, incomingColor, alpha);
-      return;
-    }
-
-    // Cone from origin up to the predicted ghost-ball position.
-    this.drawCone(startX, startY, dirX, dirY, hit.distance, halfAngleRad, incomingColor, alpha);
-
-    // Object ball travels along the line of centers (its own color).
-    const objColor = (hit.hitBall.getData("color") as number) ?? NEON_YELLOW;
-    this.drawPredictionCone(hit.hitBall.x, hit.hitBall.y, hit.objDirX, hit.objDirY, depth + 1, objColor);
-
-    // Source ball deflects along the perpendicular component of its velocity
-    // relative to the line of centers (real pool tangent line).
-    const parDot = dirX * hit.objDirX + dirY * hit.objDirY;
-    const perpX = dirX - parDot * hit.objDirX;
-    const perpY = dirY - parDot * hit.objDirY;
-    const perpLen = Math.hypot(perpX, perpY);
-    if (perpLen > 0.05) {
-      this.drawPredictionCone(hit.ghostX, hit.ghostY, perpX / perpLen, perpY / perpLen, depth + 1, incomingColor);
-    }
-  }
-
-  private drawCone(
+  // Draw a single straight prediction ray with a soft glow and an end dot.
+  // Straight lines (not cones) match the real geometry and don't flicker
+  // when the predicted contact ball changes from frame to frame.
+  private drawPredictionLine(
     x: number,
     y: number,
-    dx: number,
-    dy: number,
+    dirX: number,
+    dirY: number,
     length: number,
-    halfAngleRad: number,
     color: number,
     alpha: number,
   ) {
-    const baseAng = Math.atan2(dy, dx);
-    const a1 = baseAng - halfAngleRad;
-    const a2 = baseAng + halfAngleRad;
-    const x1 = x + Math.cos(a1) * length;
-    const y1 = y + Math.sin(a1) * length;
-    const x2 = x + Math.cos(a2) * length;
-    const y2 = y + Math.sin(a2) * length;
-
-    // Soft fill wedge for the "this region" feel.
-    this.aimGfx.fillStyle(color, alpha * 0.12);
-    this.aimGfx.fillTriangle(x, y, x1, y1, x2, y2);
-
-    // Cone edges.
-    this.aimGfx.lineStyle(1.5, color, alpha * 0.75);
-    this.aimGfx.lineBetween(x, y, x1, y1);
-    this.aimGfx.lineBetween(x, y, x2, y2);
-
-    // Arc cap at the cone's far end.
-    this.aimGfx.lineStyle(1, color, alpha * 0.5);
-    const arcSteps = 8;
-    for (let i = 0; i < arcSteps; i++) {
-      const aA = a1 + ((a2 - a1) * i) / arcSteps;
-      const aB = a1 + ((a2 - a1) * (i + 1)) / arcSteps;
-      this.aimGfx.lineBetween(
-        x + Math.cos(aA) * length,
-        y + Math.sin(aA) * length,
-        x + Math.cos(aB) * length,
-        y + Math.sin(aB) * length,
-      );
-    }
+    const ex = x + dirX * length;
+    const ey = y + dirY * length;
+    // glow
+    this.aimGfx.lineStyle(6, color, alpha * 0.25);
+    this.aimGfx.lineBetween(x, y, ex, ey);
+    // core
+    this.aimGfx.lineStyle(2, color, alpha);
+    this.aimGfx.lineBetween(x, y, ex, ey);
+    // end dot
+    this.aimGfx.fillStyle(color, alpha);
+    this.aimGfx.fillCircle(ex, ey, 3);
   }
 
   private shoot() {
@@ -503,13 +446,13 @@ class PoolScene extends Phaser.Scene {
       const dx = pointer.worldX - this.cueBall.x;
       const dy = pointer.worldY - this.cueBall.y;
       if (dx !== 0 || dy !== 0) {
-        // Smooth toward the target angle to filter out pixel-level mouse
-        // jitter that otherwise causes the cones to flicker every frame.
+        // Low-pass the aim angle so pixel-level mouse jitter doesn't wobble
+        // the aim line. Smoothing is applied to the shortest angular delta.
         const targetAngle = Math.atan2(dy, dx);
         let delta = targetAngle - this.aimAngle;
         while (delta > Math.PI) delta -= 2 * Math.PI;
         while (delta < -Math.PI) delta += 2 * Math.PI;
-        this.aimAngle += delta * 0.5; // ~3 frames to settle
+        this.aimAngle += delta * (1 - AIM_SMOOTHING);
       }
 
       const dirX = Math.cos(this.aimAngle);
@@ -541,25 +484,33 @@ class PoolScene extends Phaser.Scene {
         this.aimGfx.lineStyle(1, NEON_CYAN, 0.25);
         this.aimGfx.strokeCircle(prediction.ghostX, prediction.ghostY, BALL_R + 3);
 
-        // Cascade prediction: object ball goes along the line of centers,
-        // cue ball deflects perpendicular (90° tangent rule). Each branch
-        // recurses up to MAX_PREDICTION_DEPTH hops, with cones that widen
-        // and fade as uncertainty grows.
+        // Tangent rule: the object ball travels along the line of centers
+        // (its own color), and the cue ball deflects ~90° along the tangent.
+        // Two straight rays — simple, accurate, and flicker-free.
         const objColor = (prediction.hitBall.getData("color") as number) ?? NEON_YELLOW;
-        this.drawPredictionCone(
+        this.drawPredictionLine(
           prediction.hitBall.x,
           prediction.hitBall.y,
           prediction.objDirX,
           prediction.objDirY,
-          1,
+          OBJ_PREDICT_LEN,
           objColor,
+          0.85,
         );
         const parDot = dirX * prediction.objDirX + dirY * prediction.objDirY;
         const perpX = dirX - parDot * prediction.objDirX;
         const perpY = dirY - parDot * prediction.objDirY;
         const perpLen = Math.hypot(perpX, perpY);
         if (perpLen > 0.05) {
-          this.drawPredictionCone(prediction.ghostX, prediction.ghostY, perpX / perpLen, perpY / perpLen, 1, NEON_CYAN);
+          this.drawPredictionLine(
+            prediction.ghostX,
+            prediction.ghostY,
+            perpX / perpLen,
+            perpY / perpLen,
+            CUE_PREDICT_LEN,
+            NEON_CYAN,
+            0.6,
+          );
         }
       } else {
         // tip dot at the end of the open aim line
