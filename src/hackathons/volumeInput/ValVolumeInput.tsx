@@ -10,3 +10,25 @@ export function ValVolumeInputV1() {
     </Box>
   );
 }
+
+export function ValVolumeInputV2() {
+  const theme = useTheme();
+
+  return (
+    <Box sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper", boxShadow: theme.shadows[4] }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>Val's Volume Input V2</Typography>
+      {/* Implementation goes here */}
+    </Box>
+  );
+}
+
+export function ValVolumeInputV3() {
+  const theme = useTheme();
+
+  return (
+    <Box sx={{ p: 4, borderRadius: 2, bgcolor: "background.paper", boxShadow: theme.shadows[4] }}>
+      <Typography variant="h5" sx={{ mb: 2 }}>Val's Volume Input V3</Typography>
+      {/* Implementation goes here */}
+    </Box>
+  );
+}
