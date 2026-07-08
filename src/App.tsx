@@ -9,6 +9,7 @@ import { Currency } from "@/hackathons/currency/Currency";
 import { Frogger } from "@/hackathons/frogger/Frogger";
 import { GameClones } from "@/hackathons/gameClones/GameClones";
 import { VolumeInput } from "@/hackathons/volumeInput/VolumeInput";
+import { ManualDriving } from "@/hackathons/manualDriving/ManualDriving";
 import { motion } from "framer-motion";
 
 export function App() {
@@ -24,6 +25,7 @@ export function App() {
     { label: "Frogger", path: "/frogger" },
     { label: "Game Clones", path: "/gameclones" },
     { label: "Volume", path: "/volume" },
+    { label: "MX-5", path: "/mx5" },
   ];
 
   return (
@@ -270,6 +272,7 @@ export function App() {
         <Route path="/frogger" element={<Frogger />} />
         <Route path="/gameclones" element={<GameClones />} />
         <Route path="/volume" element={<VolumeInput />} />
+        <Route path="/mx5" element={<ManualDriving />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
