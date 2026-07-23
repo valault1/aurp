@@ -1,7 +1,7 @@
 import type { Level } from "./types";
 import { makeDefaultLevel } from "./defaultLevel";
 
-const KEY = "valGolf.level.v1";
+const KEY = "valGolf.level.v2";
 
 /** Load the saved level from localStorage, falling back to the starter level. */
 export function loadLevel(): Level {
