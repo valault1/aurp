@@ -61,8 +61,6 @@ export function GolfCanvas({ level, mode, onReady, onState, onToolChange }: Golf
       },
     );
 
-    (window as unknown as { __golfGame?: Phaser.Game }).__golfGame = game; // debug hook
-
     return () => game.destroy(true);
     // Intentionally mount once; live updates go through the scene ref.
     // eslint-disable-next-line react-hooks/exhaustive-deps
