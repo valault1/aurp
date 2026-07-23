@@ -1,7 +1,12 @@
 import { Box, Typography } from "@mui/material";
+import { ValGolf } from "./valGolf/ValGolf";
 
 export function ValSimpleCompetitionV1() {
-  return <Box><Typography>Val V1 Placeholder</Typography></Box>;
+  return (
+    <Box sx={{ width: "100%" }}>
+      <ValGolf />
+    </Box>
+  );
 }
 
 export function ValSimpleCompetitionV2() {
