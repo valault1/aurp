@@ -10,6 +10,7 @@ import { Frogger } from "@/hackathons/frogger/Frogger";
 import { GameClones } from "@/hackathons/gameClones/GameClones";
 import { VolumeInput } from "@/hackathons/volumeInput/VolumeInput";
 import { ManualDriving } from "@/hackathons/manualDriving/ManualDriving";
+import { SimpleCompetition } from "@/hackathons/simpleCompetition/SimpleCompetition";
 import { motion } from "framer-motion";
 
 export function App() {
@@ -26,6 +27,7 @@ export function App() {
     { label: "Game Clones", path: "/gameclones" },
     { label: "Volume", path: "/volume" },
     { label: "MX-5", path: "/mx5" },
+    { label: "Simple", path: "/simple" },
   ];
 
   return (
@@ -273,6 +275,7 @@ export function App() {
         <Route path="/gameclones" element={<GameClones />} />
         <Route path="/volume" element={<VolumeInput />} />
         <Route path="/mx5" element={<ManualDriving />} />
+        <Route path="/simple" element={<SimpleCompetition />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
