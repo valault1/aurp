@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { BryceLapRacer } from "./BryceLapRacer";
+import { BryceLapRacer } from "./lapRacer/BryceLapRacer";
 
 export function BryceSimpleCompetitionV1() {
   return <Box sx={{ width: "100%" }}><BryceLapRacer /></Box>;
