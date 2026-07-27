@@ -13,40 +13,61 @@ export const DIFFS: Difficulty[] = [
   { id: "hard", name: "HARD", topMul: 1.0, limitMul: 1.0, accelMul: 1.0, rubber: 0 },
 ];
 
+// driving personality — learn who's dangerous where by their color:
+//   top: straight-line speed mult · corner: corner-speed mult ·
+//   brakeLook: segments of anticipation (high = brakes EARLY, 0 = brakes at the limit) ·
+//   wide: racing-line width mult (how far out-in-out they swing)
+export interface RivalTraits { top: number; corner: number; brakeLook: number; wide: number; }
+
 export interface Rival {
-  name: string; color: Col;
+  name: string; color: Col; traits: RivalTraits;
   pos: number; prevPos: number; x: number; targetX: number;
+  gridX: number; dist: number; // grid lane held early-race + distance covered so far
   speed: number; lap: number; pace: number; cool: number;
 }
 
-const RIVAL_DEFS: { name: string; color: Col }[] = [
-  { name: "VIPER", color: [240, 200, 52] },
-  { name: "GHOST", color: [222, 228, 235] },
-  { name: "FANG", color: [56, 205, 186] },
+const RIVAL_DEFS: { name: string; color: Col; traits: RivalTraits }[] = [
+  // the yellow missile: eats you alive on straights, soft in the twisties
+  { name: "VIPER", color: [240, 200, 52], traits: { top: 1.06, corner: 0.93, brakeLook: 2, wide: 0.75 } },
+  // the silver surgeon: on the brakes a touch early, then murders the apex
+  // (brakeLook stays SMALL — the map is already brake-aware, so big lookahead
+  // double-brakes every zone and they crawl into corners)
+  { name: "GHOST", color: [222, 228, 235], traits: { top: 0.96, corner: 1.07, brakeLook: 7, wide: 1.0 } },
+  // the teal drifter: huge wide lines and brakes at the very last moment
+  { name: "FANG", color: [56, 205, 186], traits: { top: 1.0, corner: 1.0, brakeLook: 0, wide: 1.7 } },
 ];
 
-// grid: rivals line up staggered ahead of the player (you start P4 — go get them)
+// grid: rivals line up staggered ahead of the player, alternating LEFT/RIGHT columns —
+// the CENTER stays clear so a perfect launch threads the grid instead of ramming it
 export function createRivals(trackLen: number, gridAhead: number): Rival[] {
   return RIVAL_DEFS.map((d, i) => {
     const pos = (gridAhead + (i + 1) * 430) % trackLen;
-    const lane = [-0.35, 0.35, 0][i]!;
+    const lane = [-0.4, 0.4, -0.4][i]!;
     return {
-      name: d.name, color: d.color,
-      pos, prevPos: pos, x: lane, targetX: lane,
-      speed: 0, lap: 0, pace: 0.97 + i * 0.025, cool: 0,
+      name: d.name, color: d.color, traits: d.traits,
+      pos, prevPos: pos, x: lane, targetX: lane, gridX: lane, dist: 0,
+      speed: 0, lap: 0, pace: 0.985 + i * 0.01, cool: 0,
     };
   });
 }
 
 // cornerMul is the dev-panel "ai corners" knob — scales corner limits only (straights
 // stay capped by topMul), so rival corner pace is tunable without touching top speed
+// base AI top speed — deliberately UNDER the player's ~285 km/h drag-limited terminal,
+// so a clean player can out-drag even HARD (the salt flats must be winnable); corners
+// are where the AI keeps its pace instead
+export const AI_TOP = 280;
+
 export function buildAllowedSpeeds(road: Segment[], segLen: number, diff: Difficulty, cornerMul = 1): number[] {
   const N = road.length;
-  // hairpin (|c|=7) ≈ 105 km/h, sweeper (4.5) ≈ 219, kink (3) ≈ 272 on HARD — close to a
-  // skilled player's pace, so corners are no longer free overtakes
+  // the ×1.4 is Bryce's play-tested corner pace, baked in so cornerMul=1 IS that pace
+  // (winnable on HARD with a near-clean race). hairpin (|c|=7) ≈ 192 km/h, sweeper
+  // (4.5) ≈ 327→top-capped on HARD — corners are where the AI is STRONG (their
+  // straights sit under the player's terminal), so the player's game is out-dragging
+  // them and defending through the twisties
   const allowed = road.map((s) =>
-    Math.min(310 * diff.topMul, Math.max(80, (330 - 10 * Math.pow(Math.abs(s.curve), 1.6)) * diff.limitMul * cornerMul)));
-  const gain = 1.55 * segLen; // (km/h)² recoverable per segment under braking (~65 km/h/s)
+    Math.min(AI_TOP * diff.topMul, Math.max(92, (330 - 8.6 * Math.pow(Math.abs(s.curve), 1.6)) * 1.4 * diff.limitMul * cornerMul)));
+  const gain = 1.7 * segLen; // (km/h)² recoverable per segment under braking (~71 km/h/s — they brake LATE)
   for (let pass = 0; pass < 2; pass++) // two passes so zones wrap the start/finish line
     for (let i = N - 1; i >= 0; i--) {
       const next = allowed[(i + 1) % N]!;
@@ -66,19 +87,43 @@ export function updateRivals(rivals: Rival[], dt: number, env: RivalEnv) {
   const { road, segLen, trackLen, posK, allowed, diff, hazards } = env;
   const N = road.length;
   const wrap = (d: number) => { let g = ((d % trackLen) + trackLen) % trackLen; if (g > trackLen / 2) g -= trackLen; return g; };
+  const topSpeed = AI_TOP;
   for (const r of rivals) {
     if (r.cool > 0) r.cool -= dt;
     const seg = Math.floor(r.pos / segLen) % N;
-    let vT = allowed[seg]! * r.pace * env.paceMul;
+    const tr = r.traits;
+    // early brakers anticipate the map (min with a segment ahead); late brakers ride it
+    let lim = Math.min(allowed[seg]!, allowed[(seg + tr.brakeLook) % N]!);
+    // trait applies by regime: near top speed = straight-line trait, else corner trait.
+    // Even the missile is capped a hair over the player's ~285 terminal — a perfect
+    // launch + shifts + NOS must always be able to win the drag race.
+    lim *= lim >= topSpeed * diff.topMul * 0.92 ? tr.top : tr.corner;
+    lim = Math.min(lim, 288 * diff.topMul);
+    let vT = lim * r.pace * env.paceMul;
     // rubber band keeps the pack in the fight on lower difficulties (off on HARD)
     if (diff.rubber > 0) {
       const gapToPlayer = env.playerTotal - (r.lap * trackLen + r.pos);
       if (gapToPlayer > 4000) vT *= 1 + 0.14 * diff.rubber;
       else if (gapToPlayer < -4000) vT *= 1 - 0.11 * diff.rubber;
     }
-    // racing line: hug the inside of whatever's coming
-    const aheadCurve = road[Math.floor((r.pos + 2600) / segLen) % N]!.curve;
-    let tx = clamp(aheadCurve * 0.1, -0.42, 0.42);
+    // racing line, out-in-out: the LOCAL curvature pulls toward the apex right now,
+    // while curvature SMOOTHED over a window (reaching behind and well ahead) pushes
+    // wide — the phase difference between the two sweeps entry-wide → apex → exit-wide
+    // for free, so rivals visibly drive corners instead of railing the inside
+    const segIdx = Math.floor(r.pos / segLen);
+    const kLocal = road[segIdx % N]!.curve;
+    let kSmooth = 0, wsum = 0;
+    for (let d = -24; d <= 48; d += 4) {
+      const w = 1 - Math.abs(d - 12) / 40;
+      if (w <= 0) continue;
+      kSmooth += road[(((segIdx + d) % N) + N) % N]!.curve * w;
+      wsum += w;
+    }
+    kSmooth /= wsum;
+    // `wide` trait scales how far the out-in-out sweep swings
+    let tx = clamp(kLocal * 0.17 - kSmooth * 0.11 * tr.wide, -0.45, 0.45);
+    // a touch of wobble so the pack doesn't run single-file
+    tx += Math.sin(r.pos * 0.0005 + r.pace * 90) * 0.05;
     // nearest slower car ahead that overlaps my line
     let blocker: Hazard | null = null, blockerDist = Infinity;
     for (const h of hazards) {
@@ -103,13 +148,20 @@ export function updateRivals(rivals: Rival[], dt: number, env: RivalEnv) {
       if (!dodgeBlocked) tx = dodge;
       else if (blockerDist < 1100) vT = Math.min(vT, bl.speed * 0.98);
     }
+    // off the line, hold the grid lane and only blend onto the racing line over the
+    // first ~8000 units — no instant funnel to the center right where the player's
+    // perfect launch is threading the grid
+    const settle = Math.min(1, r.dist / 8000);
+    tx = r.gridX + (tx - r.gridX) * settle;
     const accel = Math.max(5, 42 - r.speed * 0.095) * diff.accelMul;
     if (vT > r.speed) r.speed = Math.min(vT, r.speed + accel * dt);
-    else r.speed = Math.max(vT, r.speed - 64 * dt); // matches the braking map's decel
+    else r.speed = Math.max(vT, r.speed - 70 * dt); // matches the braking map's decel
     r.targetX = tx;
     r.x += (r.targetX - r.x) * Math.min(1, dt * 1.6);
     r.prevPos = r.pos;
-    r.pos += r.speed * posK * dt;
+    const move = r.speed * posK * dt;
+    r.pos += move;
+    r.dist += move;
     if (r.pos >= trackLen) { r.pos -= trackLen; r.lap += 1; }
   }
 }

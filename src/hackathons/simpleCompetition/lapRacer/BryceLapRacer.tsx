@@ -2,9 +2,10 @@ import { useEffect, useRef } from "react";
 import { clamp, lerp, fmtTime, type Col } from "./util";
 import { TUNING, TUNING_DEFAULTS, KNOBS, CAR } from "./tuning";
 import { TRACKS, tracePath, type Segment } from "./tracks";
-import { drawPlayerCar, drawTrafficCar, drawTree, quad, checker } from "./sprites";
+import { drawPlayerCar, drawTrafficCar, drawHazard, quad, checker, PAINTS } from "./sprites";
 import { createEngineAudio } from "./audio";
 import { DIFFS, createRivals, buildAllowedSpeeds, updateRivals, type Rival, type Hazard } from "./ai";
+import { MEDAL_ICON, awardChallenges, loadChallenges, timeTargets, type RaceStats } from "./missions";
 import { CSS } from "./styles";
 
 /**
@@ -49,21 +50,30 @@ export function BryceLapRacer() {
     let road: Segment[] = [];
     let N = 0;
     let trackLen = 0;
-    // mode 0 = TIME TRIAL (no rivals, endless laps); 1..3 = race vs AI at DIFFS[mode-1]
-    const MODES = [{ id: "tt", name: "TIME TRIAL" }, ...DIFFS];
+    // mode 0 = TIME TRIAL (the same track.laps timed race, just no rivals);
+    // 1..3 = VS the AI pack at DIFFS[mode-1]
+    const MODES = [
+      { id: "tt", name: "TIME TRIAL" },
+      ...DIFFS.map((d) => ({ ...d, name: "VS · " + d.name })),
+    ];
     let modeIdx = 2; // MED default
     const raceDiff = () => (modeIdx > 0 ? DIFFS[modeIdx - 1]! : null);
+    // race length lives on the track (tracks.ts); TUNING.RACE_LAPS is just the fallback
+    const raceLaps = () => track.laps ?? T.RACE_LAPS;
     let allowedSpeeds: number[] = []; // AI braking map for current track + difficulty
 
-    // roadside trees (deterministic clusters) — scenery so off-road feels alive.
-    // Only beside straighter segments: on a sharp curve a roadside tree projects over the
-    // road at the vanishing point (can't be occluded there), so we just skip those.
+    // roadside hazards (trees/cacti/rocks — deterministic clusters), scenery so off-road
+    // feels alive. Only beside straighter segments: on a sharp curve a roadside billboard
+    // projects over the road at the vanishing point (can't be occluded there), so skip.
+    // track.hazards.density scales spawn rate: 1 ≈ every ~7 straight segments, 0 = none.
     const treesBySeg = new Map<number, number[]>();
     function buildTrees() {
       treesBySeg.clear();
+      const density = track.hazards.density;
+      if (density <= 0) return;
       for (let i = 0; i < N; i++) {
-        const h = (i * 2654435761) >>> 0; // cheap stable hash → same trees every run
-        if (h % 14 < 2 && Math.abs(road[i]!.curve) < 2) {
+        const h = (i * 2654435761) >>> 0; // cheap stable hash → same layout every run
+        if (h % 1000 < 143 * density && Math.abs(road[i]!.curve) < 2) {
           const side = h & 8 ? 1 : -1;
           const off = side * (2.8 + ((h >> 4) % 100) / 100 * 2.4); // 2.8..5.2 — well clear of the road
           treesBySeg.set(i, [off]);
@@ -84,7 +94,9 @@ export function BryceLapRacer() {
     let impactFlash = 0; // red vignette + judder on contact (instead of a text popup)
     function initTraffic() {
       traffic = [];
-      const count = track.traffic || T.TRAFFIC;
+      // track.traffic is a DENSITY (cars per 100k world units) so track length doesn't
+      // skew it; TRAFFIC_MUL is the dev-panel dial — 0 empties the road (clean testing)
+      const count = Math.round((trackLen / 100000) * track.traffic * T.TRAFFIC_MUL);
       for (let i = 0; i < count; i++) {
         const lane = LANES[i % 3]! + ((i * 37) % 7) / 100 - 0.03;
         traffic.push({
@@ -108,18 +120,30 @@ export function BryceLapRacer() {
       if (g > trackLen / 2) g -= trackLen;
       return g;
     }
-    // hit when inside the car-length window — or when the closing speed stepped clean
+    // "hit" when inside the car-length window — or when the closing speed stepped clean
     // over the window in one frame (no tunneling through cars at 200 mph).
     // Window is asymmetric: a bit more reach ahead (your car's nose extends up-screen
     // past the sprite) than behind (a car behind the plane is sliding off the bottom
     // edge beside you). Lateral 0.22 is calibrated to DRAWN separation, not road units:
     // steering slides the world under the camera while the player sprite barely moves,
     // so sprites visually touch at ~0.21 offset — a wider box hits through visible air.
-    function sweptPlaneHit(pos: number, prevPos: number, x: number, dt: number) {
+    // "near" = crossed the plane a whisker outside the hitbox — that's a NEAR MISS,
+    // and near misses are how the NOS tank fills.
+    // `ahead` = they were in front of my nose when it happened (I hit THEM); false =
+    // I was hit from behind — direction decides who pays for the contact.
+    function planeInteraction(pos: number, prevPos: number, x: number, dt: number): { act: "hit" | "near"; ahead: boolean } | null {
       const gap = gapToPlane(pos);
       const prevGap = gapToPlane(prevPos) + S.speed * T.POS_K * dt;
       const crossed = (prevGap > 0) !== (gap > 0) && Math.abs(prevGap - gap) < trackLen / 4;
-      return (crossed || (gap < 150 && gap > -70)) && Math.abs(x - S.playerX) < 0.22;
+      const dx = Math.abs(x - S.playerX);
+      const ahead = crossed ? prevGap > 0 : gap > 0;
+      if ((crossed || (gap < 150 && gap > -70)) && dx < 0.22) return { act: "hit", ahead };
+      if (crossed && dx < 0.5 && S.speed > 30) return { act: "near", ahead };
+      return null;
+    }
+    function nearMiss() {
+      S.boost = Math.min(1, S.boost + T.BOOST_FILL);
+      nosFlashUntil = gameTime + 0.9;
     }
 
     function updateTraffic(dt: number) {
@@ -137,13 +161,31 @@ export function BryceLapRacer() {
         }
         t.x += (t.targetX - t.x) * Math.min(1, dt * 1.1);
         if (S.phase !== "racing") continue;
-        if (t.cool <= 0 && sweptPlaneHit(t.pos, prevPos, t.x, dt)) {
-          S.speed *= 0.42; // bump = you lose your drive
+        const act = planeInteraction(t.pos, prevPos, t.x, dt);
+        if (act?.act === "hit" && t.cool <= 0) {
           const dir = Math.sign(S.playerX - t.x) || 1;
-          S.driftVel += dir * 1.8; // and get knocked into a slide
+          const closing = S.speed - t.speed;
+          if (act.ahead && closing > 25) {
+            // I ran into them — I lose my drive; my fault, breaks my clean run
+            S.speed *= 0.42;
+            S.driftVel += dir * 1.8;
+            S.contacts += 1;
+            impactFlash = 1;
+          } else if (!act.ahead && closing < -25) {
+            // they ran into ME — a shove from behind, not a wall; they eat the loss
+            S.speed = Math.max(S.speed, t.speed * 0.75);
+            S.driftVel += dir * 0.9;
+            t.speed *= 0.55;
+            impactFlash = 0.55;
+          } else {
+            // drifted into a car alongside — scrape, shove apart, carry on
+            S.speed *= 0.9;
+            S.driftVel += dir * 1.2;
+            t.targetX = clamp(t.x - dir * 0.35, -0.55, 0.55);
+            impactFlash = 0.4;
+          }
           t.cool = 0.8;
-          impactFlash = 1;
-        }
+        } else if (act?.act === "near") nearMiss();
       }
       // trees only bite once you're off the road — measured on the same sprite plane
       if (treeCool > 0) treeCool -= dt;
@@ -161,6 +203,7 @@ export function BryceLapRacer() {
               S.driftVel += (Math.sign(S.playerX - ox) || 1) * 1.6;
               treeCool = 0.6;
               impactFlash = 1;
+              S.contacts += 1;
             }
           }
         }
@@ -187,17 +230,38 @@ export function BryceLapRacer() {
         allowed: allowedSpeeds, diff, paceMul: T.AI_PACE,
         playerTotal: playerTotal(), hazards,
       });
-      // rival ↔ player contact: door-to-door, both cars pay for it
+      // rival ↔ player contact — THREE kinds, split by direction AND closing speed:
+      //   rear-end (them ahead, you 25+ km/h faster): your fault, you lose your drive
+      //   punt (you ahead, them 25+ km/h faster): their fault, you're shoved forward
+      //   door-to-door rub (similar speeds, side by side): a racing incident — both
+      //     scrub a little and get pushed apart; nobody's race ends over paint swap
       for (const r of rivals) {
-        if (r.cool <= 0 && sweptPlaneHit(r.pos, r.prevPos, r.x, dt)) {
-          S.speed *= 0.55;
+        const act = planeInteraction(r.pos, r.prevPos, r.x, dt);
+        if (act?.act === "hit" && r.cool <= 0) {
           const dir = Math.sign(S.playerX - r.x) || 1;
-          S.driftVel += dir * 1.6;
-          r.speed *= 0.72;
-          r.x = clamp(r.x - dir * 0.22, -0.5, 0.5);
+          const closing = S.speed - r.speed;
+          if (act.ahead && closing > 25) {
+            S.speed *= 0.55;
+            S.driftVel += dir * 1.6;
+            r.speed *= 0.9;
+            S.contacts += 1; // my fault — breaks the clean run
+            impactFlash = 1;
+          } else if (!act.ahead && closing < -25) {
+            S.speed = Math.max(S.speed, r.speed * 0.8); // punted forward, blameless
+            S.driftVel += dir * 0.9;
+            r.speed *= 0.68;
+            impactFlash = 0.55;
+          } else {
+            S.speed *= 0.93;
+            r.speed *= 0.94;
+            S.driftVel += dir * 1.1;
+            impactFlash = 0.4; // rubbin' is racin' — doesn't count as a contact
+          }
+          r.x = clamp(r.x - dir * 0.3, -0.5, 0.5);
           r.cool = 0.8;
-          impactFlash = 1;
         }
+        // NB: rivals deliberately give NO near-miss NOS — pacing alongside a
+        // similar-speed CPU would farm the tank for free. Traffic only.
       }
     }
 
@@ -206,10 +270,20 @@ export function BryceLapRacer() {
       rpm: car.idle, speed: 0, gear: 1,
       gas: 0, brake: 0, throttle: 0, position: 0, playerX: 0, steerVel: 0, driftVel: 0,
       lap: 0, lapTime: 0, lastLap: 0, bestLap: 0, raceTime: 0, raceBest: 0, fuelCut: false,
+      boost: 0, boosting: false, contacts: 0, offroadS: 0,
     };
+    let nosFlashUntil = 0; // NOS bar glows briefly when a near-miss fills it
+    let shiftToastUntil = 0; // small toast above the dash (perfect shift / launch / wheelspin)
+    let bogUntil = 0; // wheelspin from a botched launch — throttle does almost nothing
+    function toast(text: string, warn = false) {
+      shiftToastEl.textContent = text;
+      shiftToastEl.classList.toggle("warn", warn);
+      shiftToastEl.classList.add("show");
+      shiftToastUntil = gameTime + 1.6;
+    }
     let bestSplits: number[] | null = null;
     let curSplits: number[] = [];
-    let lastSeg = 0;
+    let lastSeg = -1;
 
     function speedToRPM(speedKmh: number, gear: number) {
       const mps = Math.abs(speedKmh) / 3.6;
@@ -229,12 +303,47 @@ export function BryceLapRacer() {
         if (!v && track.id === "laguna") v = localStorage.getItem("lapracer.best." + car.id); // pre-track-select saves
         if (!v) return null;
         const o = JSON.parse(v);
-        if (o && typeof o.time === "number" && Array.isArray(o.splits)) return o as { time: number; splits: number[] };
+        if (o && typeof o.time === "number" && Array.isArray(o.splits)) {
+          // a record whose splits don't span this track was set on an OLD layout —
+          // its time is meaningless here and its splits would freeze the live delta
+          // partway around the lap. Ignore it; the next finished lap overwrites it.
+          if (o.splits.length < N - 10 || o.splits.length > N) return null;
+          return o as { time: number; splits: number[] };
+        }
       } catch { /* storage may be unavailable */ }
       return null;
     }
     function saveBest(time: number, splits: number[]) {
       try { localStorage.setItem(bestKeyFor(track.id), JSON.stringify({ time, splits })); } catch { /* ignore */ }
+    }
+    // best TOTAL race time, stored per lap-count so the RACE_LAPS knob can't corrupt it
+    const raceBestKeyFor = (trackId: string) => `lapracer.racebest.${car.id}.${trackId}`;
+    const readJSON = (k: string) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
+    function saveRaceBest(time: number) {
+      try {
+        const rb = (readJSON(raceBestKeyFor(track.id)) ?? {}) as Record<string, number>;
+        const k = String(raceLaps());
+        if (!(typeof rb[k] === "number") || time < rb[k]!) {
+          rb[k] = time;
+          localStorage.setItem(raceBestKeyFor(track.id), JSON.stringify(rb));
+        }
+      } catch { /* ignore */ }
+    }
+    // segment count per track, for validating stored records against the CURRENT layout
+    const TRACK_SEGS = TRACKS.map((tk) => tk.build().length);
+    function bestTimesFor(trackIdx2: number): { lap: number | null; race: number | null } {
+      const tk = TRACKS[trackIdx2]!;
+      let o = readJSON(bestKeyFor(tk.id));
+      if (!o && tk.id === "laguna") o = readJSON("lapracer.best." + car.id);
+      // same staleness rule as loadBest: a record from an old layout doesn't count
+      const segs = TRACK_SEGS[trackIdx2]!;
+      const valid = o && typeof o.time === "number" && Array.isArray(o.splits)
+        && o.splits.length >= segs - 10 && o.splits.length <= segs;
+      const lap = valid ? (o.time as number) : null;
+      // race bests are keyed by lap count — use THAT track's laps, not the selected one
+      const rb = readJSON(raceBestKeyFor(tk.id)) as Record<string, number> | null;
+      const race = rb && typeof rb[String(tk.laps)] === "number" ? rb[String(tk.laps)]! : null;
+      return { lap, race };
     }
 
     // ---------- DOM handles ----------
@@ -255,15 +364,25 @@ export function BryceLapRacer() {
     const startEl = q('[data-el="start"]');
     const startBtn = q('[data-el="startBtn"]');
     const resultsEl = q('[data-el="results"]');
+    const resPosRowEl = q('[data-el="resPosRow"]');
     const resPosEl = q('[data-el="resPos"]');
     const resTotalEl = q('[data-el="resTotal"]');
     const resBestEl = q('[data-el="resBest"]');
     const resNoteEl = q('[data-el="resNote"]');
+    const resMedalsEl = q('[data-el="resMedals"]');
+    const missionRowEl = q('[data-el="missionRow"]');
+    const fillNos = q('[data-el="fillNos"]');
+    const chalEl = q('[data-el="chal"]');
+    const chTarmacEl = q('[data-el="chTarmac"]');
+    const chCleanEl = q('[data-el="chClean"]');
+    const chWinEl = q('[data-el="chWin"]');
+    const chTimeEl = q('[data-el="chTime"]');
     const devEl = q('[data-el="dev"]');
-    const devBtn = q('[data-el="devBtn"]');
     const devRowsEl = q('[data-el="devRows"]');
     const devResetBtn = q('[data-el="devReset"]');
+    const devResetRecBtn = q('[data-el="devResetRecords"]');
     const diffsEl = q('[data-el="diffs"]');
+    const shiftToastEl = q('[data-el="shiftToast"]');
 
     // ---------- track picker (start screen) ----------
     const tracksEl = q('[data-el="tracks"]');
@@ -276,7 +395,16 @@ export function BryceLapRacer() {
       nm.className = "tname"; nm.textContent = tk.name;
       const tg = document.createElement("span");
       tg.className = "ttag"; tg.textContent = tk.tagline;
-      card.append(cv, nm, tg);
+      const dots = document.createElement("span");
+      dots.className = "mdots";
+      for (const key of ["tarmac", "clean", "time", "pack"]) {
+        const d = document.createElement("i");
+        d.className = "mdot"; d.dataset.k = key;
+        dots.appendChild(d);
+      }
+      const tb = document.createElement("span");
+      tb.className = "tbest";
+      card.append(cv, nm, tg, dots, tb);
       card.addEventListener("click", () => { if (S.phase === "start") loadTrack(i); });
       tracksEl.appendChild(card);
       // draw the loop preview once
@@ -310,11 +438,56 @@ export function BryceLapRacer() {
       S.position = 0; S.lapTime = 0; S.lap = 0; S.lastLap = 0;
       const b = loadBest();
       bestSplits = b ? b.splits : null;
-      curSplits = []; lastSeg = 0;
+      curSplits = []; lastSeg = -1;
       S.bestLap = b ? b.time : 0;
       bestEl.textContent = S.bestLap ? fmtTime(S.bestLap) : "--:--.---";
       lastEl.textContent = "--:--.---";
       cards.forEach((c, ci) => c.classList.toggle("active", ci === trackIdx));
+      refreshMedalUI();
+    }
+
+    // challenge dots + best times on every track card + the selected track's strip
+    const fmtShort = (s: number | null) => (s == null ? "--" : fmtTime(s).replace(/(\.\d)\d+$/, "$1"));
+    function refreshMedalUI() {
+      const save = loadChallenges();
+      cards.forEach((card, i) => {
+        const c = save[TRACKS[i]!.id] ?? {};
+        card.querySelectorAll<HTMLElement>(".mdot").forEach((d) => {
+          const k = d.dataset.k!;
+          d.dataset.medal = k === "time" || k === "pack"
+            ? (c[k] ?? "")
+            : c[k as "tarmac" | "clean"] ? "done" : "";
+        });
+        const bt = bestTimesFor(i);
+        const tb = card.querySelector<HTMLElement>(".tbest");
+        if (tb) {
+          tb.textContent = `⏱ ${fmtShort(bt.lap)} · 🏁 ${fmtShort(bt.race)}`;
+          tb.title = "best lap · best race";
+        }
+      });
+      const c = save[track.id] ?? {};
+      const [g, s, b] = timeTargets(track.medalLaps, raceLaps());
+      const items: { txt: string; has: boolean; title: string }[] = [
+        { txt: `${c.tarmac ? "✓" : "○"} TARMAC ONLY`, has: !!c.tarmac, title: "finish without going off-road" },
+        { txt: `${c.clean ? "✓" : "○"} NO CONTACT`, has: !!c.clean, title: "finish without hitting anything" },
+        {
+          txt: `${c.time ? MEDAL_ICON[c.time] : "○"} UNDER ${fmtTime(b)}`, has: !!c.time,
+          title: `finish the race under 🥉 ${fmtTime(b)} · 🥈 ${fmtTime(s)} · 🥇 ${fmtTime(g)}`,
+        },
+        {
+          txt: `${c.pack ? MEDAL_ICON[c.pack] : "○"} BEAT THE PACK`, has: !!c.pack,
+          title: "win a VS race — 🥉 easy · 🥈 med · 🥇 hard",
+        },
+      ];
+      missionRowEl.replaceChildren(
+        ...items.map((it) => {
+          const sp = document.createElement("span");
+          sp.className = "mrow-item" + (it.has ? " has" : "");
+          sp.title = it.title;
+          sp.textContent = it.txt;
+          return sp;
+        }),
+      );
     }
 
     // ---------- mode picker (start screen): time trial or race difficulty ----------
@@ -345,10 +518,42 @@ export function BryceLapRacer() {
       applyDiff();
     }
 
+    // ---------- paint picker (start screen) ----------
+    const paintsEl = q('[data-el="paints"]');
+    const paintKey = "lapracer.paint";
+    let paintIdx = 0;
+    try {
+      const saved = Number(localStorage.getItem(paintKey));
+      if (Number.isInteger(saved) && saved >= 0 && saved < PAINTS.length) paintIdx = saved;
+    } catch { /* ignore */ }
+    const playerPaint = () => PAINTS[paintIdx]!.col;
+    const paintBtns = PAINTS.map((p, i) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "paint-swatch";
+      btn.title = p.name;
+      btn.style.background = `rgb(${p.col[0]},${p.col[1]},${p.col[2]})`;
+      btn.addEventListener("click", () => { if (S.phase === "start") setPaint(i); });
+      paintsEl.appendChild(btn);
+      return btn;
+    });
+    function setPaint(i: number) {
+      paintIdx = ((i % PAINTS.length) + PAINTS.length) % PAINTS.length;
+      try { localStorage.setItem(paintKey, String(paintIdx)); } catch { /* ignore */ }
+      paintBtns.forEach((b, bi) => b.classList.toggle("active", bi === paintIdx));
+    }
+    setPaint(paintIdx);
+
     // ---------- dev tuning panel (` to toggle) ----------
-    const tuningKey = "lapracer.tuning";
+    const tuningKey = "lapracer.tuning2"; // v2: the ×1.4 corner pace is baked into the AI formula
     try { // apply saved overrides
-      const o = JSON.parse(localStorage.getItem(tuningKey) || "{}") as Record<string, number>;
+      let o = JSON.parse(localStorage.getItem(tuningKey) || "null") as Record<string, number> | null;
+      if (!o) {
+        // migrate v1 saves: their AI_CORNER was relative to the pre-bake formula, so a
+        // stored 1.4 means "the pace that is now 1.0" — rescale, don't double-apply
+        o = JSON.parse(localStorage.getItem("lapracer.tuning") || "{}") as Record<string, number>;
+        if (typeof o.AI_CORNER === "number") o.AI_CORNER = Math.round((o.AI_CORNER / 1.4) * 50) / 50;
+      }
       for (const kn of KNOBS) if (typeof o[kn.k] === "number") (T as Record<string, number>)[kn.k] = o[kn.k]!;
     } catch { /* ignore */ }
     const saveTuning = () => {
@@ -385,14 +590,25 @@ export function BryceLapRacer() {
     // sliders swallow their own keystrokes so tuning never fights the wheel
     const devKeys = (e: KeyboardEvent) => e.stopPropagation();
     devEl.addEventListener("keydown", devKeys);
-    const onDevToggle = () => devEl.classList.toggle("open");
     const onDevReset = () => {
       Object.assign(T, TUNING_DEFAULTS);
-      try { localStorage.removeItem(tuningKey); } catch { /* ignore */ }
+      try { localStorage.removeItem(tuningKey); localStorage.removeItem("lapracer.tuning"); } catch { /* ignore */ }
       knobRefreshers.forEach((fn) => fn());
     };
-    devBtn.addEventListener("click", onDevToggle);
+    const onDevResetRecords = () => {
+      if (!window.confirm("Wipe ALL best laps, race times, and challenge medals?")) return;
+      try {
+        for (const tk of TRACKS) {
+          localStorage.removeItem(bestKeyFor(tk.id));
+          localStorage.removeItem(raceBestKeyFor(tk.id));
+        }
+        localStorage.removeItem("lapracer.best." + car.id); // legacy pre-track-select key
+        localStorage.removeItem("lapracer.challenges");
+      } catch { /* ignore */ }
+      loadTrack(trackIdx); // re-read the (now empty) records into the UI
+    };
     devResetBtn.addEventListener("click", onDevReset);
+    devResetRecBtn.addEventListener("click", onDevResetRecords);
 
     // ---------- controls ----------
     const keys = new Set<string>();
@@ -401,13 +617,40 @@ export function BryceLapRacer() {
       S.speed = 0; S.gear = 1; S.rpm = car.idle; S.position = 0; S.playerX = 0; S.steerVel = 0; S.driftVel = 0;
       S.gas = 0; S.brake = 0; S.throttle = 0; S.lapTime = 0; S.fuelCut = false;
       S.lap = 0; S.raceTime = 0; S.raceBest = 0;
-      curSplits = []; lastSeg = 0; countdownStart = gameTime;
+      S.boost = 0; S.boosting = false; S.contacts = 0; S.offroadS = 0;
+      bogUntil = 0;
+      shiftChanceUsed.clear();
+      curSplits = []; lastSeg = -1; countdownStart = gameTime;
       initTraffic(); initRivals(); applyDiff();
       startEl.classList.add("hidden");
       resultsEl.classList.add("hidden");
       if (engine.on) { engine.ensure(); engine.resume(); }
     }
-    function shift(dir: number) { S.gear = clamp(S.gear + dir, 1, car.gears); }
+    // the FIRST upshift INTO each gear is special: nail it in the sweet spot (shift
+    // light on, before the redline) and you're handed NOS. One chance per gear per race
+    // — consumed even on a miss, no retries by downshifting. A perfect 1→2→3→4→5→6 run
+    // up through the box banks five payouts. Skill-check the launch.
+    const shiftChanceUsed = new Set<number>();
+    function onUpshift(target: number) {
+      if (S.phase !== "racing" || shiftChanceUsed.has(target)) return;
+      shiftChanceUsed.add(target);
+      if (S.rpm >= car.shift && S.rpm <= car.redline) {
+        S.boost = Math.min(1, S.boost + T.BOOST_SHIFT);
+        nosFlashUntil = gameTime + 1.2;
+        // small toast above the dash — a center banner sat on the horizon and hid traffic
+        toast("PERFECT SHIFT ★");
+      }
+    }
+    function shift(dir: number) {
+      const ng = clamp(S.gear + dir, 1, car.gears);
+      if (ng > S.gear) onUpshift(ng);
+      S.gear = ng;
+    }
+    function setGear(g: number) {
+      const ng = clamp(g, 1, car.gears);
+      if (ng > S.gear) onUpshift(ng);
+      S.gear = ng;
+    }
     function onKeyDown(e: KeyboardEvent) {
       const k = e.key.toLowerCase();
       if (["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(k)) e.preventDefault();
@@ -429,7 +672,7 @@ export function BryceLapRacer() {
       else if (k === "m") toggleSound();
       else if (k === "e" || k === "x" || k === ".") shift(1);
       else if (k === "q" || k === "z" || k === ",") shift(-1);
-      else if (k >= "1" && k <= "6") S.gear = clamp(Number(k), 1, car.gears);
+      else if (k >= "1" && k <= "6") setGear(Number(k));
     }
     const onKeyUp = (e: KeyboardEvent) => keys.delete(e.key.toLowerCase());
     const onBlur = () => keys.clear();
@@ -449,23 +692,37 @@ export function BryceLapRacer() {
       S.brake += (brakeT - S.brake) * Math.min(1, dt * 10);
       S.throttle = S.gas;
 
-      if (S.phase !== "racing") { S.rpm = car.idle + S.gas * 2500; S.speed = 0; return; }
+      if (S.phase !== "racing") {
+        // lazy flywheel while parked: revs CHASE the throttle instead of snapping to it,
+        // so holding the launch zone is a rhythm skill, not a frame-perfect lift
+        S.rpm += (car.idle + S.gas * 2500 - S.rpm) * Math.min(1, dt * 3.2);
+        S.speed = 0;
+        return;
+      }
 
       const mps = S.speed / 3.6;
       const gt = ratio(S.gear) * car.final;
 
       const rpm = clamp(speedToRPM(S.speed, S.gear), 0, car.mechMax);
       S.fuelCut = rpm >= car.revLimit;
-      const engineT = S.fuelCut ? 0 : S.throttle * car.maxTq * torqueAt(rpm);
+      // wheelspin after a botched launch: the tires are lit up, throttle does ~nothing
+      const bogged = gameTime < bogUntil;
+      const engineT = S.fuelCut ? 0 : S.throttle * car.maxTq * torqueAt(rpm) * (bogged ? 0.2 : 1);
       const driveForce = clamp((engineT * gt) / car.wheelR, -car.grip, car.grip);
       const engBrake = (1 - S.throttle) * (18 + rpm * 0.02) * Math.abs(gt) / car.wheelR;
 
       const offRoad = Math.abs(S.playerX) > 1;
+      if (offRoad) S.offroadS += dt; // mission bookkeeping
       const resist = (Math.abs(mps) > 0.01 ? Math.sign(mps) : 0) * car.roll + car.aero * mps * Math.abs(mps);
       const brakeF = S.brake * car.brakeMax * (mps > 0.05 ? 1 : 0);
       const offDrag = offRoad && S.speed > T.OFFROAD_MAX_KMH ? T.OFFROAD_DECEL : 0;
 
-      const net = driveForce - resist - brakeF - engBrake - offDrag;
+      // NOS: hold shift to dump the tank — a straight shove of extra thrust
+      S.boosting = keys.has("shift") && S.boost > 0 && S.gas > 0.2 && !offRoad;
+      const boostF = S.boosting ? T.BOOST_FORCE : 0;
+      if (S.boosting) S.boost = Math.max(0, S.boost - T.BOOST_DRAIN * dt);
+
+      const net = driveForce + boostF - resist - brakeF - engBrake - offDrag;
       let newMps = mps + (net / car.mass) * dt;
       if (newMps < 0) newMps = 0;
       S.speed = newMps * 3.6;
@@ -476,13 +733,21 @@ export function BryceLapRacer() {
       // going straight while the road bends away underneath it. Grip bleeds the drift
       // off once the road straightens, so exits carry a slide you must counter-steer.
       const speedPct = clamp(S.speed / 290, 0, 1);
-      const seg = road[Math.floor(S.position / T.SEG_LEN) % N]!;
+      // sample the curve at the SPRITE's plane, not the camera — the camera trails the
+      // visible car by ~5 segments, so sampling at the camera kept the corner force
+      // firing after the car had visibly exited the turn
+      const seg = road[Math.floor((S.position + PLAYER_Z) / T.SEG_LEN) % N]!;
       const steerIn = (keys.has("arrowleft") || keys.has("a") ? -1 : 0) + (keys.has("arrowright") || keys.has("d") ? 1 : 0);
       // slidey steering: input eases into a lateral velocity (loose, not on-rails)
       const steerTarget = steerIn * T.STEER * (0.45 + 0.55 * speedPct);
       S.steerVel += (steerTarget - S.steerVel) * Math.min(1, dt * T.STEER_SLIDE);
       S.driftVel -= seg.curve * speedPct * speedPct * T.CENTRIFUGAL * dt;
-      S.driftVel -= S.driftVel * Math.min(1, dt * T.GRIP_RECOVER);
+      // grip is road-aware: loose mid-corner (GRIP_RECOVER — the fight stays), but the
+      // tires hook up fast once the road straightens under the car (GRIP_STRAIGHT), so
+      // the slide stops carrying long past the exit
+      const curveMag = Math.min(1, Math.abs(seg.curve) / 4);
+      const recover = lerp(T.GRIP_STRAIGHT, T.GRIP_RECOVER, curveMag);
+      S.driftVel -= S.driftVel * Math.min(1, dt * recover);
       S.playerX += (S.steerVel + S.driftVel) * dt;
       S.playerX = clamp(S.playerX, -3.4, 3.4);
 
@@ -499,7 +764,16 @@ export function BryceLapRacer() {
 
     function recordSplits(_before: number, after: number) {
       const seg = Math.floor(after / T.SEG_LEN) % N;
-      if (seg !== lastSeg) { curSplits[seg] = S.lapTime; lastSeg = seg; }
+      if (seg === lastSeg) return;
+      // stamp EVERY segment crossed since the last frame — at 200 mph that's 2-3 per
+      // frame, and holes in the reference lap would blank the live delta next time
+      let i = (lastSeg + 1 + N) % N;
+      for (let guard = 0; guard < N; guard++) {
+        curSplits[i] = S.lapTime;
+        if (i === seg) break;
+        i = (i + 1) % N;
+      }
+      lastSeg = seg;
     }
     function completeLap() {
       S.lap += 1;
@@ -517,20 +791,31 @@ export function BryceLapRacer() {
       } else {
         flashBanner("LAP " + S.lap + "  " + fmtTime(S.lastLap), "info");
       }
-      S.lapTime = 0; curSplits = []; lastSeg = 0;
-      // time trial never ends — lap forever chasing the record; races finish after N laps
-      if (raceDiff() && S.lap >= T.RACE_LAPS) finishRace(newBest);
+      S.lapTime = 0; curSplits = []; lastSeg = -1;
+      // both modes are the same timed race — TIME TRIAL is just the empty grid
+      if (S.lap >= raceLaps()) finishRace(newBest);
     }
     function finishRace(newBest: boolean) {
       S.phase = "finished";
+      const diff = raceDiff();
       const place = playerPlace();
+      resPosRowEl.style.display = diff ? "" : "none"; // no POSITION row in time trial
       resPosEl.textContent = `P${place} / ${rivals.length + 1}`;
       resTotalEl.textContent = fmtTime(S.raceTime);
       resBestEl.textContent = fmtTime(S.raceBest);
       const notes: string[] = [];
-      if (place === 1) notes.push("★ YOU WIN ★");
+      if (diff && place === 1) notes.push("★ YOU WIN ★");
       if (newBest) notes.push("★ NEW TRACK RECORD ★");
       resNoteEl.textContent = notes.join("  ·  ");
+      // grade the challenges and show what this run earned (★ = first time / upgraded)
+      const stats: RaceStats = {
+        finished: true, raceTime: S.raceTime, contacts: S.contacts, offroadS: S.offroadS,
+        won: !!diff && place === 1, diffId: diff ? diff.id : null,
+      };
+      saveRaceBest(S.raceTime);
+      const earned = awardChallenges(track.id, track.medalLaps, raceLaps(), stats);
+      resMedalsEl.textContent = earned.map((e) => e.label + (e.isNew ? " ★" : "")).join("   ");
+      refreshMedalUI();
       resultsEl.classList.remove("hidden");
       bannerEl.className = "banner"; // don't flash a lap banner over the card
     }
@@ -641,9 +926,9 @@ export function BryceLapRacer() {
         // vanishing point and can smear across the distant road; fog hides the cutoff
         const trees = f < 0.5 ? treesBySeg.get(seg.index) : undefined;
         if (trees) for (const ox of trees) {
-          // hard guarantee: a tree is never drawn within the road, whatever the stored value
+          // hard guarantee: a hazard is never drawn within the road, whatever the stored value
           const oxs = (ox < 0 ? -1 : 1) * Math.max(2.4, Math.abs(ox));
-          drawTree(rctx, fog, p1.x + oxs * p1.w, p1.y, p1.w, f, theme.tree);
+          drawHazard(rctx, fog, track.hazards.kind, p1.x + oxs * p1.w, p1.y, p1.w, f, theme.tree);
         }
       }
       // traffic + rival sprites: placed by each car's TRUE position (interpolated inside
@@ -652,21 +937,30 @@ export function BryceLapRacer() {
       // the bottom edge of the screen, which is also where the collision plane sits.
       const sprites: { x: number; y: number; w: number; f: number; c: Col; v: number }[] = [];
       const pushSprite = (pos: number, laneX: number, c: Col, v: number) => {
-        const row = rowBySeg.get(Math.floor(pos / T.SEG_LEN) % N);
-        if (!row) return;
-        const fr = (pos % T.SEG_LEN) / T.SEG_LEN;
+        const segI = Math.floor(pos / T.SEG_LEN) % N;
+        let row = rowBySeg.get(segI);
+        let fr = (pos % T.SEG_LEN) / T.SEG_LEN;
+        if (!row) {
+          // nearest rows flicker in/out of the cull (their on-screen span crosses the
+          // bottom edge frame to frame) — extrapolate from the NEXT segment's row so a
+          // car alongside you slides off smoothly instead of blinking
+          row = rowBySeg.get((segI + 1) % N);
+          if (!row) return;
+          fr -= 1; // one segment nearer than the row → lerp extrapolates below it
+        }
         const w = lerp(row.p1.w, row.p2.w, fr);
+        const y = lerp(row.p1.y, row.p2.y, fr);
+        if (y > H + 260) return; // fully off the bottom
         sprites.push({
           x: lerp(row.p1.x, row.p2.x, fr) + laneX * w,
-          y: lerp(row.p1.y, row.p2.y, fr),
-          w, f: row.f, c, v,
+          y, w, f: row.f, c, v,
         });
       };
       for (const t of traffic) pushSprite(t.pos, t.x, t.color, t.variant);
       for (const r of rivals) pushSprite(r.pos, r.x, r.color, 3);
       sprites.sort((a, b) => a.y - b.y);
       for (const sp of sprites) drawTrafficCar(rctx, fog, sp.x, sp.y, sp.w, sp.f, sp.c, sp.v);
-      drawPlayerCar(rctx, W, H, S);
+      drawPlayerCar(rctx, W, H, S, playerPaint());
       // impact feedback: a red vignette that blooms in from the edges and fades — no popup
       if (impactFlash > 0) {
         const vg = rctx.createRadialGradient(W / 2, H * 0.55, H * 0.25, W / 2, H * 0.55, H);
@@ -695,6 +989,18 @@ export function BryceLapRacer() {
       tctx.beginPath();
       tctx.arc(cx, cy, R - 8, start + sweep * (redAt / maxDial), start + sweep, false);
       tctx.lineWidth = 4; tctx.strokeStyle = "rgba(224,47,38,.85)"; tctx.stroke();
+
+      // countdown launch zones: hold the needle in the GREEN at GO for a perfect
+      // launch; the red band past it is wheelspin city
+      if (S.phase === "countdown") {
+        const zone = (lo: number, hi: number, color: string) => {
+          tctx.beginPath();
+          tctx.arc(cx, cy, R - 8, start + sweep * (lo / 1000 / maxDial), start + sweep * (hi / 1000 / maxDial), false);
+          tctx.lineWidth = 5; tctx.strokeStyle = color; tctx.stroke();
+        };
+        zone(T.LAUNCH_LO, T.LAUNCH_HI, "rgba(82,193,122,.95)");
+        zone(T.LAUNCH_SPIN, 3600, "rgba(224,47,38,.95)");
+      }
 
       for (let i = 0; i <= maxDial; i++) {
         const a = start + sweep * (i / maxDial);
@@ -748,8 +1054,11 @@ export function BryceLapRacer() {
         mctx.beginPath(); mctx.arc(rp.x, rp.y, 3, 0, Math.PI * 2); mctx.fill();
       }
       const p = mapPath[Math.floor(S.position / T.SEG_LEN) % N]!;
-      mctx.fillStyle = "#c8102e"; mctx.shadowColor = "rgba(200,16,46,.9)"; mctx.shadowBlur = 8;
-      mctx.beginPath(); mctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2); mctx.fill(); mctx.shadowBlur = 0;
+      const pc = playerPaint();
+      mctx.fillStyle = `rgb(${pc[0]},${pc[1]},${pc[2]})`;
+      mctx.shadowColor = `rgba(${pc[0]},${pc[1]},${pc[2]},.9)`; mctx.shadowBlur = 8;
+      mctx.strokeStyle = "rgba(255,255,255,.9)"; mctx.lineWidth = 1.5;
+      mctx.beginPath(); mctx.arc(p.x, p.y, 4.5, 0, Math.PI * 2); mctx.fill(); mctx.stroke(); mctx.shadowBlur = 0;
     }
 
     // ---------- audio ----------
@@ -766,30 +1075,53 @@ export function BryceLapRacer() {
       rpmEl.textContent = String(Math.round(S.rpm));
       gearEl.textContent = String(S.gear);
       const inRace = S.phase === "racing" || S.phase === "countdown";
-      if (raceDiff()) {
-        const curLap = inRace ? Math.min(S.lap + 1, T.RACE_LAPS) : S.lap;
-        lapNumEl.textContent = curLap + "/" + T.RACE_LAPS;
-        posEl.textContent = inRace || S.phase === "finished" ? "P" + playerPlace() : "–";
-      } else {
-        lapNumEl.textContent = String(inRace ? S.lap + 1 : S.lap);
-        posEl.textContent = "TT";
+      const curLap = inRace ? Math.min(S.lap + 1, raceLaps()) : S.lap;
+      lapNumEl.textContent = curLap + "/" + raceLaps();
+      posEl.textContent = raceDiff()
+        ? (inRace || S.phase === "finished" ? "P" + playerPlace() : "–")
+        : "TT";
+      fillNos.style.height = (S.boost * 100).toFixed(0) + "%";
+      fillNos.classList.toggle("flash", gameTime < nosFlashUntil);
+
+      // live challenge tracker: see a challenge die the moment you blow it, and watch
+      // the clock on the next time medal tick down
+      chalEl.classList.toggle("show", inRace);
+      if (inRace) {
+        const setCh = (el: HTMLElement, label: string, alive: boolean) => {
+          el.textContent = (alive ? "✓ " : "✗ ") + label;
+          el.className = "ch " + (alive ? "ok" : "dead");
+        };
+        setCh(chTarmacEl, "TARMAC", S.offroadS <= 0);
+        setCh(chCleanEl, "CLEAN", S.contacts === 0);
+        chWinEl.style.display = raceDiff() ? "" : "none";
+        if (raceDiff()) setCh(chWinEl, "P1", playerPlace() === 1);
+        const [g, sv, bz] = timeTargets(track.medalLaps, raceLaps());
+        const next = S.raceTime <= g ? ["🥇", g] as const : S.raceTime <= sv ? ["🥈", sv] as const : S.raceTime <= bz ? ["🥉", bz] as const : null;
+        chTimeEl.textContent = next ? `${next[0]} ${fmtTime(next[1] - S.raceTime)}` : "✗ TIME";
+        chTimeEl.className = "ch " + (next ? "time" : "dead");
       }
       lapTimeEl.textContent = fmtTime(S.lapTime);
       fillGas.style.height = (S.gas * 100).toFixed(0) + "%";
       fillBrake.style.height = (S.brake * 100).toFixed(0) + "%";
 
-      if (bestSplits && S.phase === "racing") {
+      // live delta vs the best lap — only from lap 2 on (lap 1 is a standing start,
+      // there's nothing fair to time it against), and HIDE on a missing reference
+      // rather than freezing the last value on screen
+      if (bestSplits && S.phase === "racing" && S.lap > 0) {
         const seg = Math.floor(S.position / T.SEG_LEN) % N;
         const ref = bestSplits[seg];
         if (typeof ref === "number") {
           const d = S.lapTime - ref;
           deltaEl.textContent = (d >= 0 ? "+" : "−") + Math.abs(d).toFixed(2);
           deltaEl.className = "delta show " + (d <= 0 ? "ahead" : "behind");
+        } else {
+          deltaEl.className = "delta";
         }
       } else {
         deltaEl.className = "delta";
       }
       if (bannerEl.classList.contains("show") && gameTime > bannerUntil) bannerEl.className = "banner";
+      if (shiftToastEl.classList.contains("show") && gameTime > shiftToastUntil) shiftToastEl.classList.remove("show");
     }
 
     // ---------- main loop ----------
@@ -806,7 +1138,27 @@ export function BryceLapRacer() {
       if (impactFlash > 0) impactFlash = Math.max(0, impactFlash - dt * 2.2);
       if (S.phase === "countdown") {
         const remain = 3 - (gameTime - countdownStart);
-        if (remain <= 0) { S.phase = "racing"; S.lapTime = 0; lastSeg = 0; curSplits = []; flashBanner("GO!", "go"); }
+        if (remain <= 0) {
+          S.phase = "racing"; S.lapTime = 0; lastSeg = -1; curSplits = [];
+          // revs held at GO carry over as a launch — with a goldilocks zone (shown green
+          // on the tach during the countdown). In the zone: perfect launch. Pinned past
+          // it: wheelspin — you crawl away with a bogged throttle. Below: partial carry.
+          const rpm = S.rpm;
+          if (rpm >= T.LAUNCH_LO && rpm <= T.LAUNCH_HI) {
+            S.speed = 30;
+            toast("PERFECT LAUNCH ★");
+          } else if (rpm > T.LAUNCH_SPIN) {
+            S.speed = 4;
+            bogUntil = gameTime + 0.65;
+            toast("WHEELSPIN!", true);
+          } else {
+            S.speed = clamp((rpm - car.idle) / 2500, 0, 1) * 24;
+          }
+          // rivals launch too — quality varies per start, better drivers nail it more
+          const diff = raceDiff();
+          for (const r of rivals) r.speed = 8 + Math.random() * 10 + (diff ? diff.accelMul * 10 : 0);
+          flashBanner("GO!", "go");
+        }
         else flashBanner(String(Math.ceil(remain)), "count");
         physics(dt);
       } else if (S.phase === "racing") {
@@ -839,13 +1191,14 @@ export function BryceLapRacer() {
       window.removeEventListener("resize", resize);
       soundBtn.removeEventListener("click", onSound);
       startBtn.removeEventListener("click", onStart);
-      devBtn.removeEventListener("click", onDevToggle);
       devResetBtn.removeEventListener("click", onDevReset);
+      devResetRecBtn.removeEventListener("click", onDevResetRecords);
       devEl.removeEventListener("keydown", devKeys);
       // strict-mode double-mount would duplicate the imperatively-built rows/cards
       tracksEl.replaceChildren();
       devRowsEl.replaceChildren();
       diffsEl.replaceChildren();
+      paintsEl.replaceChildren();
       engine.dispose();
     };
   }, []);
@@ -860,7 +1213,6 @@ export function BryceLapRacer() {
             <h1>APEX<span className="dot">·</span></h1>
             <span className="tag">beat the pack · beat the clock</span>
           </div>
-          <button className="sound-btn" data-el="devBtn" type="button">Tune</button>
           <button className="sound-btn on" data-el="soundBtn" type="button">Sound: On</button>
         </div>
 
@@ -875,6 +1227,13 @@ export function BryceLapRacer() {
           </div>
 
           <div className="delta" data-el="delta">+0.00</div>
+
+          <div className="hud-chal" data-el="chal">
+            <span className="ch" data-el="chTarmac" />
+            <span className="ch" data-el="chClean" />
+            <span className="ch" data-el="chWin" />
+            <span className="ch time" data-el="chTime" />
+          </div>
 
           <div className="hud-map">
             <canvas ref={mapRef} />
@@ -891,6 +1250,7 @@ export function BryceLapRacer() {
             <div className="pedals">
               <div className="pedal"><div className="fill gas" data-el="fillGas" /><span>GAS</span></div>
               <div className="pedal"><div className="fill brake" data-el="fillBrake" /><span>BRK</span></div>
+              <div className="pedal"><div className="fill nos" data-el="fillNos" /><span>NOS</span></div>
             </div>
           </div>
 
@@ -900,16 +1260,22 @@ export function BryceLapRacer() {
           <div className="dev" data-el="dev">
             <h3>TUNING</h3>
             <div className="dev-rows" data-el="devRows" />
-            <button className="dev-reset" data-el="devReset" type="button">reset defaults</button>
+            <div className="dev-btns">
+              <button className="dev-reset" data-el="devReset" type="button">reset defaults</button>
+              <button className="dev-reset" data-el="devResetRecords" type="button">reset records</button>
+            </div>
           </div>
+
+          <div className="shift-toast" data-el="shiftToast" />
 
           {/* race results */}
           <div className="results hidden" data-el="results">
             <div className="results-card">
               <div className="results-title">FINISH</div>
-              <div className="rrow"><span>POSITION</span><b data-el="resPos">–</b></div>
+              <div className="rrow" data-el="resPosRow"><span>POSITION</span><b data-el="resPos">–</b></div>
               <div className="rrow"><span>RACE TIME</span><b data-el="resTotal">--:--.---</b></div>
               <div className="rrow"><span>BEST LAP</span><b data-el="resBest">--:--.---</b></div>
+              <div className="results-medals" data-el="resMedals" />
               <div className="results-note" data-el="resNote" />
               <div className="results-hint">ENTER race again · ESC circuits</div>
             </div>
@@ -925,7 +1291,9 @@ export function BryceLapRacer() {
               <div className="start-sub">outrun the pack · set the record</div>
               <div className="track-picker" data-el="tracks" />
               <div className="diff-picker" data-el="diffs" />
-              <div className="track-hint">◂ ▸ circuit · ▲ ▾ rivals</div>
+              <div className="paint-picker" data-el="paints" />
+              <div className="mission-row" data-el="missionRow" />
+              <div className="track-hint">◂ ▸ circuit · ▲ ▾ mode</div>
               <button className="start-btn" data-el="startBtn" type="button">▸ PRESS ENTER TO START</button>
             </div>
           </div>
@@ -937,10 +1305,10 @@ export function BryceLapRacer() {
           <span><b>↓</b> brake</span>
           <span><b>. / E</b> up-shift</span>
           <span><b>, / Q</b> down-shift</span>
+          <span><b>Shift</b> NOS (fill it with near-misses)</span>
           <span><b>1–6</b> gear</span>
           <span><b>Enter</b> restart</span>
           <span><b>Esc</b> circuits</span>
-          <span><b>{"`"}</b> tune</span>
           <span><b>M</b> mute</span>
         </div>
       </div>

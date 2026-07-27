@@ -4,8 +4,16 @@
 import type { Col } from "./util";
 
 export interface Segment { index: number; curve: number; }
+export type HazardKind = "tree" | "cactus" | "rock"; // off-road hazards — same behavior, different sprite
 export interface Theme { sky: [string, string, string]; ground: [string, string]; grass: [Col, Col]; fog: Col; tree: Col; }
-export interface Track { id: string; name: string; tagline: string; traffic: number; theme: Theme; build: () => Segment[]; }
+export interface Track {
+  id: string; name: string; tagline: string;
+  traffic: number; // traffic DENSITY: cars per 100,000 world units (≈2 = busy circuit)
+  hazards: { kind: HazardKind; density: number }; // density 1 ≈ a hazard every ~7 straight segments; 0 = bare horizon
+  laps: number; // race length for this track's events (TT and VS both)
+  medalLaps: [number, number, number]; // per-LAP pace [gold, silver, bronze] s; race time target = pace × laps — tune from real laps!
+  theme: Theme; build: () => Segment[];
+}
 
 // A single-vanishing-point renderer can't bend more than ~7/seg without the road folding,
 // so curve is clamped. Make turns TIGHTER by holding a curve LONGER, not by cranking it up.
@@ -27,7 +35,9 @@ function makeRoad(lay: (addRoad: (enter: number, hold: number, leave: number, cu
 
 export const TRACKS: Track[] = [
   {
-    id: "laguna", name: "LAGUNA", tagline: "sunset classic", traffic: 9,
+    id: "laguna", name: "LAGUNA", tagline: "sunset classic",
+    traffic: 2.1, hazards: { kind: "tree", density: 1 },
+    laps: 4, medalLaps: [28, 32, 40],
     theme: {
       sky: ["#4f9fc9", "#8fc6de", "#e9dcc0"], ground: ["#7f9150", "#5a6b39"],
       grass: [[106, 125, 63], [116, 137, 71]], fog: [233, 220, 192], tree: [46, 92, 50],
@@ -46,7 +56,9 @@ export const TRACKS: Track[] = [
     }),
   },
   {
-    id: "sidewinder", name: "SIDEWINDER", tagline: "desert hairpins", traffic: 7,
+    id: "sidewinder", name: "SIDEWINDER", tagline: "desert hairpins",
+    traffic: 1.9, hazards: { kind: "cactus", density: 0.45 }, // mostly-empty desert, some saguaros
+    laps: 3, medalLaps: [31, 36, 45],
     theme: {
       sky: ["#d97a35", "#edac5c", "#f7e2ae"], ground: ["#c2a15f", "#8f7440"],
       grass: [[186, 152, 92], [174, 140, 82]], fog: [246, 224, 178], tree: [116, 124, 58],
@@ -66,7 +78,9 @@ export const TRACKS: Track[] = [
     }),
   },
   {
-    id: "eldorado", name: "EL DORADO", tagline: "flat-out dusk", traffic: 10,
+    id: "eldorado", name: "EL DORADO", tagline: "flat-out dusk",
+    traffic: 2, hazards: { kind: "rock", density: 0.7 },
+    laps: 3, medalLaps: [27, 31, 40],
     theme: {
       sky: ["#33427c", "#8a63ab", "#eda0ac"], ground: ["#5d7250", "#3f5138"],
       grass: [[88, 108, 74], [97, 118, 81]], fog: [228, 196, 200], tree: [40, 78, 56],
@@ -80,6 +94,23 @@ export const TRACKS: Track[] = [
       addRoad(24, 78, 36, 14);   // the ONE big stop — hairpin right
       addRoad(72, 90, 60, 0);
       addRoad(60, 108, 66, 5);   // long right back onto the front straight
+    }),
+  },
+  {
+    // one endless straight: shift practice, drag racing, and the perfect place for a
+    // driving bot (no steering required). Wraps seamlessly — the minimap is just a line.
+    id: "salt", name: "SALT FLATS", tagline: "shift-perfect drag",
+    traffic: 0.9, hazards: { kind: "cactus", density: 0.12 }, // near-empty pan, a stray cactus
+    // calibrated from measured runs (terminal 177 mph / 199 w/ NOS → flying lap floor
+    // ≈26.7 s, standing lap ≈30 s): gold = perfect launch + shifts + NOS, silver =
+    // Bryce flat-out (58 s race), bronze = a tidy finish
+    laps: 2, medalLaps: [28.2, 29.3, 33],
+    theme: {
+      sky: ["#9ec7dd", "#c9e2ec", "#f2f4f0"], ground: ["#e8e6dd", "#cfccc0"],
+      grass: [[226, 224, 214], [216, 213, 202]], fog: [244, 244, 240], tree: [96, 112, 84],
+    },
+    build: () => makeRoad((addRoad) => {
+      addRoad(0, 3200, 0, 0); // the whole "track" — a 400 mph horizon
     }),
   },
 ];
@@ -100,10 +131,14 @@ export function tracePath(rd: Segment[], w: number, h: number, pad: number) {
   }
   // the heading scale guarantees 360° of TURNING but not that the endpoint lands back on
   // the start — spread the leftover gap across the loop so the player dot never teleports
-  // when crossing the finish line
+  // when crossing the finish line. ONLY for genuine loops: applying this to a straight
+  // "track" (net curvature ~0, e.g. the salt flats) would collapse the whole line to a dot.
+  const isLoop = Math.abs(sumCurve) > 1e-6;
   for (let i = 0; i < pts.length; i++) {
-    const t = (i + 1) / pts.length;
-    pts[i]!.x -= px * t; pts[i]!.y -= py * t;
+    if (isLoop) {
+      const t = (i + 1) / pts.length;
+      pts[i]!.x -= px * t; pts[i]!.y -= py * t;
+    }
     minX = Math.min(minX, pts[i]!.x); maxX = Math.max(maxX, pts[i]!.x);
     minY = Math.min(minY, pts[i]!.y); maxY = Math.max(maxY, pts[i]!.y);
   }

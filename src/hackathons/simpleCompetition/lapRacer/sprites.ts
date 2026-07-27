@@ -2,6 +2,7 @@
 // Everything takes ctx (+ a fog() shader for distance haze) so the module stays pure.
 
 import { clamp, type Col } from "./util";
+import type { HazardKind } from "./tracks";
 
 export type FogFn = (color: Col, amount: number) => string;
 
@@ -34,6 +35,13 @@ export function checker(ctx: CanvasRenderingContext2D, x1: number, y1: number, w
   }
 }
 
+// off-road hazards: identical collision behavior, different sprite per track biome
+export function drawHazard(ctx: CanvasRenderingContext2D, fog: FogFn, kind: HazardKind, sx: number, sy: number, w: number, f: number, col: Col) {
+  if (kind === "cactus") drawCactus(ctx, fog, sx, sy, w, f, col);
+  else if (kind === "rock") drawRock(ctx, fog, sx, sy, w, f, col);
+  else drawTree(ctx, fog, sx, sy, w, f, col);
+}
+
 export function drawTree(ctx: CanvasRenderingContext2D, fog: FogFn, sx: number, sy: number, w: number, f: number, canopy: Col) {
   const th = Math.min(w * 1.3, 260); // canopy height (capped so close trees aren't huge)
   const tw = th * 0.5;
@@ -49,6 +57,41 @@ export function drawTree(ctx: CanvasRenderingContext2D, fog: FogFn, sx: number, 
     ctx.lineTo(sx + twi * 0.5, ty);
     ctx.closePath(); ctx.fill();
   }
+}
+
+// saguaro: tall trunk, two up-curved arms at different heights
+export function drawCactus(ctx: CanvasRenderingContext2D, fog: FogFn, sx: number, sy: number, w: number, f: number, col: Col) {
+  const th = Math.min(w * 1.05, 210);
+  const g = fog(col, f);
+  const dark = fog([col[0] * 0.72, col[1] * 0.72, col[2] * 0.72] as Col, f);
+  ctx.fillStyle = g;
+  rrect(ctx, sx - th * 0.075, sy - th * 0.82, th * 0.15, th * 0.82, th * 0.075); // trunk
+  // left arm (lower): out + up
+  rrect(ctx, sx - th * 0.30, sy - th * 0.40, th * 0.24, th * 0.10, th * 0.05);
+  rrect(ctx, sx - th * 0.30, sy - th * 0.58, th * 0.11, th * 0.26, th * 0.055);
+  // right arm (higher)
+  rrect(ctx, sx + th * 0.06, sy - th * 0.55, th * 0.24, th * 0.10, th * 0.05);
+  rrect(ctx, sx + th * 0.19, sy - th * 0.72, th * 0.11, th * 0.25, th * 0.055);
+  // trunk shading line
+  ctx.fillStyle = dark;
+  rrect(ctx, sx + th * 0.02, sy - th * 0.78, th * 0.035, th * 0.74, th * 0.02);
+}
+
+// squat boulder — wide and low, pale highlight on the sun side
+export function drawRock(ctx: CanvasRenderingContext2D, fog: FogFn, sx: number, sy: number, w: number, f: number, col: Col) {
+  const th = Math.min(w * 0.55, 110);
+  ctx.fillStyle = fog(col, f);
+  ctx.beginPath();
+  ctx.moveTo(sx - th * 0.62, sy);
+  ctx.quadraticCurveTo(sx - th * 0.55, sy - th * 0.62, sx - th * 0.05, sy - th * 0.68);
+  ctx.quadraticCurveTo(sx + th * 0.5, sy - th * 0.62, sx + th * 0.6, sy);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = fog([Math.min(255, col[0] * 1.25), Math.min(255, col[1] * 1.25), Math.min(255, col[2] * 1.25)] as Col, f);
+  ctx.beginPath();
+  ctx.moveTo(sx + th * 0.05, sy - th * 0.66);
+  ctx.quadraticCurveTo(sx + th * 0.42, sy - th * 0.58, sx + th * 0.5, sy - th * 0.3);
+  ctx.quadraticCurveTo(sx + th * 0.2, sy - th * 0.5, sx + th * 0.05, sy - th * 0.66);
+  ctx.closePath(); ctx.fill();
 }
 
 // four retro silhouettes: 0 = wedge coupe w/ spoiler, 1 = surf van, 2 = round bug,
@@ -116,13 +159,29 @@ export function drawTrafficCar(ctx: CanvasRenderingContext2D, fog: FogFn, sx: nu
   rrect(ctx, sx + cw * 0.39, sy - ch * 0.3, cw * 0.06, ch * 0.09, 2);
 }
 
+// player paint options — the classic NA Miata palette, naturally
+export const PAINTS: { name: string; col: Col }[] = [
+  { name: "CLASSIC RED", col: [200, 16, 46] },
+  { name: "MARINER BLUE", col: [30, 105, 190] },
+  { name: "SUNBURST YELLOW", col: [235, 195, 40] },
+  { name: "BRG", col: [30, 88, 54] },
+  { name: "CRYSTAL WHITE", col: [225, 225, 220] },
+  { name: "MIDNIGHT", col: [40, 44, 56] },
+];
+
 export interface PlayerPose {
   playerX: number; steerVel: number; driftVel: number;
   position: number; speed: number; brake: number;
+  boosting?: boolean;
 }
 
-// rear view of the little red roadster — chunky OutRun-style sprite
-export function drawPlayerCar(ctx: CanvasRenderingContext2D, W: number, H: number, s: PlayerPose) {
+// rear view of the little red roadster — chunky OutRun-style sprite.
+// The car YAWS with lateral motion: the tail swings toward the slide and a slice of the
+// car's flank (door, front fender, front wheel) rotates into view on the other side —
+// so a hard turn/drift shows the side of the car instead of just leaning.
+export function drawPlayerCar(ctx: CanvasRenderingContext2D, W: number, H: number, s: PlayerPose, paint: Col = [200, 16, 46]) {
+  // every body panel derives from the paint via a brightness multiplier
+  const sh = (m: number) => `rgb(${Math.min(255, Math.round(paint[0] * m))},${Math.min(255, Math.round(paint[1] * m))},${Math.min(255, Math.round(paint[2] * m))})`;
   const cw = Math.min(W * 0.24, 300);
   const scale = cw / 300;
   // the car slides toward the screen edge as you drift wide — reads as YOU sliding,
@@ -131,16 +190,42 @@ export function drawPlayerCar(ctx: CanvasRenderingContext2D, W: number, H: numbe
   const cy = H - cw * 0.30;
   const bob = Math.sin(s.position * 0.02) * (s.speed > 5 ? 1.2 : 0);
   // bank with how hard the car is actually moving sideways — steering AND slide
-  const bank = clamp((s.steerVel + s.driftVel) * 0.05, -0.2, 0.2);
+  const lat = s.steerVel + s.driftVel;
+  const bank = clamp(lat * 0.035, -0.14, 0.14);
+  // yaw: >0 = nose swinging right, flank appears on the LEFT
+  const yaw = clamp(lat * 0.17, -1, 1);
+  const side = -Math.sign(yaw) || 1; // which side the flank shows on
+  const fl = Math.abs(yaw) * 92; // how much flank is visible
 
   ctx.save();
   ctx.translate(cx, cy + bob);
   ctx.scale(scale, scale);
   ctx.rotate(bank);
 
-  // ground shadow
+  // ground shadow (stretches under the visible flank)
   ctx.fillStyle = "rgba(0,0,0,.32)";
-  ctx.beginPath(); ctx.ellipse(0, 68, 158, 20, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(side * fl * 0.4, 68, 158 + fl * 0.6, 20, 0, 0, Math.PI * 2); ctx.fill();
+
+  // ---- flank (drawn first, the rear face overlaps it so there's no seam) ----
+  if (fl > 5) {
+    const fx = side < 0 ? -132 - fl : 132; // flank panel spans outward from the body edge
+    // front wheel at the far end of the flank, steered
+    ctx.fillStyle = "#0e1013";
+    rrect(ctx, side < 0 ? fx - 10 : fx + fl - 14, 6, 24, 40, 8);
+    // door + front fender panel, shaded darker than the rear face
+    const fg = ctx.createLinearGradient(0, -22, 0, 48);
+    fg.addColorStop(0, sh(0.85)); fg.addColorStop(1, sh(0.52));
+    ctx.fillStyle = fg;
+    rrect(ctx, fx - (side < 0 ? 0 : 24), -22, fl + 24, 64, 16);
+    // sill shadow along the bottom of the flank
+    ctx.fillStyle = "#17191d";
+    rrect(ctx, fx - (side < 0 ? 0 : 24), 34, fl + 24, 12, 6);
+  }
+
+  // ---- rear face: shifts toward the flank side and narrows slightly as the car yaws ----
+  ctx.save();
+  ctx.translate(side * fl * 0.16, 0);
+  ctx.scale(1 - Math.abs(yaw) * 0.08, 1);
   // rear tyres — wide + squat, silver hubs peeking under the bumper
   ctx.fillStyle = "#0e1013";
   rrect(ctx, -158, 24, 48, 44, 10); rrect(ctx, 110, 24, 48, 44, 10);
@@ -150,15 +235,19 @@ export function drawPlayerCar(ctx: CanvasRenderingContext2D, W: number, H: numbe
   ctx.fillStyle = "#17191d"; rrect(ctx, -126, 42, 252, 24, 8);
   // fender hips — wide-body bulges
   const hip = ctx.createLinearGradient(0, -14, 0, 50);
-  hip.addColorStop(0, "#dd1d3d"); hip.addColorStop(1, "#7e0a1e");
+  hip.addColorStop(0, sh(1.05)); hip.addColorStop(1, sh(0.6));
   ctx.fillStyle = hip;
   rrect(ctx, -150, -8, 60, 56, 20); rrect(ctx, 90, -8, 60, 56, 20);
   // body (vertical gradient for depth)
   const g = ctx.createLinearGradient(0, -36, 0, 48);
-  g.addColorStop(0, "#f23350"); g.addColorStop(0.5, "#c8102e"); g.addColorStop(1, "#8f0c22");
+  g.addColorStop(0, sh(1.2)); g.addColorStop(0.5, sh(1)); g.addColorStop(1, sh(0.68));
   ctx.fillStyle = g; rrect(ctx, -132, -32, 264, 80, 20);
   // trunk speedline highlight
   ctx.fillStyle = "rgba(255,255,255,.14)"; rrect(ctx, -118, -28, 236, 12, 8);
+
+  // ---- greenhouse: sits deeper in the car, so it shifts toward the nose swing ----
+  ctx.save();
+  ctx.translate(yaw * 20, 0);
   // twin roll hoops peeking over the soft-top
   ctx.fillStyle = "#20262e";
   ctx.beginPath(); ctx.arc(-36, -48, 11, Math.PI, 0); ctx.closePath(); ctx.fill();
@@ -168,8 +257,10 @@ export function drawPlayerCar(ctx: CanvasRenderingContext2D, W: number, H: numbe
   ctx.fillStyle = "#05070a"; rrect(ctx, -62, -42, 124, 20, 8);
   ctx.fillStyle = "rgba(140,220,255,.16)"; rrect(ctx, -62, -42, 124, 8, 6);
   // side mirrors
-  ctx.fillStyle = "#a90f28";
+  ctx.fillStyle = sh(0.8);
   rrect(ctx, -152, -24, 18, 12, 5); rrect(ctx, 134, -24, 18, 12, 5);
+  ctx.restore();
+
   // chrome rear bumper
   const chrome = ctx.createLinearGradient(0, 30, 0, 44);
   chrome.addColorStop(0, "#e8edf2"); chrome.addColorStop(0.5, "#9aa6b1"); chrome.addColorStop(1, "#5c666f");
@@ -186,8 +277,24 @@ export function drawPlayerCar(ctx: CanvasRenderingContext2D, W: number, H: numbe
   ctx.fillStyle = "#e9e3d2"; rrect(ctx, -26, 14, 52, 15, 3);
   ctx.fillStyle = "#3a4149"; ctx.font = "700 11px ui-monospace, Menlo, monospace"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
   ctx.fillText("APEX", 0, 22);
-  // dual exhaust tips
+  // dual exhaust tips (+ NOS flames while boosting)
   ctx.fillStyle = "#2a2f36"; ctx.beginPath(); ctx.arc(-44, 58, 6, 0, Math.PI * 2); ctx.arc(44, 58, 6, 0, Math.PI * 2); ctx.fill();
   ctx.fillStyle = "#0a0c0e"; ctx.beginPath(); ctx.arc(-44, 58, 3, 0, Math.PI * 2); ctx.arc(44, 58, 3, 0, Math.PI * 2); ctx.fill();
+  if (s.boosting) {
+    for (const ex of [-44, 44]) {
+      const len = 26 + Math.random() * 22;
+      const flame = ctx.createLinearGradient(0, 58, 0, 58 + len);
+      flame.addColorStop(0, "rgba(140,220,255,.95)");
+      flame.addColorStop(0.4, "rgba(255,190,80,.85)");
+      flame.addColorStop(1, "rgba(255,90,40,0)");
+      ctx.fillStyle = flame;
+      ctx.beginPath();
+      ctx.moveTo(ex - 7, 58);
+      ctx.lineTo(ex + 7, 58);
+      ctx.lineTo(ex + (Math.random() - 0.5) * 8, 58 + len);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.restore(); // rear face
   ctx.restore();
 }
