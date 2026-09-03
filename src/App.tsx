@@ -11,6 +11,7 @@ import { GameClones } from "@/hackathons/gameClones/GameClones";
 import { VolumeInput } from "@/hackathons/volumeInput/VolumeInput";
 import { SimpleCompetition } from "@/hackathons/simpleCompetition/SimpleCompetition";
 import { Apex } from "@/hackathons/apex/Apex";
+import { ServerGame } from "@/hackathons/serverGame/ServerGame";
 import { motion } from "framer-motion";
 
 export function App() {
@@ -28,6 +29,7 @@ export function App() {
     { label: "Volume", path: "/volume" },
     { label: "Simple", path: "/simple" },
     { label: "Apex", path: "/apex" },
+    { label: "Server Game", path: "/servergame" },
   ];
 
   return (
@@ -276,6 +278,7 @@ export function App() {
         <Route path="/volume/*" element={<VolumeInput />} />
         <Route path="/simple/*" element={<SimpleCompetition />} />
         <Route path="/apex/*" element={<Apex />} />
+        <Route path="/servergame/*" element={<ServerGame />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
