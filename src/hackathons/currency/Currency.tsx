@@ -1,6 +1,5 @@
 import { Box, useTheme, alpha } from "@mui/material";
-import { useState } from "react";
-import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
+import { CompetitionToggle, type Competitor, useCompetitionState } from "@/components/CompetitionToggle";
 import { ValCurrencyV1, ValCurrencyV2, ValCurrencyV3 } from "./ValCurrency";
 import { BryceCurrency } from "./BryceCurrency";
 import { BryceCurrency2 } from "./BryceCurrency2";
@@ -21,13 +20,7 @@ const COMPETITORS: Competitor[] = [
 
 export function Currency() {
   const theme = useTheme();
-  const [activeCompetitorId, setActiveCompetitorId] = useState<string>("val");
-  const [activeIterationId, setActiveIterationId] = useState<string>("v1");
-
-  const handleToggleChange = (competitorId: string, iterationId: string) => {
-    setActiveCompetitorId(competitorId);
-    setActiveIterationId(iterationId);
-  };
+  const { activeCompetitorId, activeIterationId, handleToggleChange } = useCompetitionState("val", "v1");
 
   return (
     <Box sx={{ width: "100%", maxWidth: "1200px", mx: "auto", p: { xs: 2, md: 4 } }}>

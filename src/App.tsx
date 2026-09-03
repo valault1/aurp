@@ -10,6 +10,7 @@ import { Frogger } from "@/hackathons/frogger/Frogger";
 import { GameClones } from "@/hackathons/gameClones/GameClones";
 import { VolumeInput } from "@/hackathons/volumeInput/VolumeInput";
 import { SimpleCompetition } from "@/hackathons/simpleCompetition/SimpleCompetition";
+import { Apex } from "@/hackathons/apex/Apex";
 import { motion } from "framer-motion";
 
 export function App() {
@@ -26,6 +27,7 @@ export function App() {
     { label: "Game Clones", path: "/gameclones" },
     { label: "Volume", path: "/volume" },
     { label: "Simple", path: "/simple" },
+    { label: "Apex", path: "/apex" },
   ];
 
   return (
@@ -67,7 +69,7 @@ export function App() {
           />
           <Box sx={{ flexGrow: 1, display: 'flex', gap: 1 }}>
             {navItems.map((item) => {
-              const isActive = location.pathname === item.path;
+              const isActive = location.pathname.startsWith(item.path);
               return (
                 <Button
                   key={item.path}
@@ -267,12 +269,13 @@ export function App() {
             </Box>
           }
         />
-        <Route path="/text" element={<TextInput />} />
-        <Route path="/currency" element={<Currency />} />
-        <Route path="/frogger" element={<Frogger />} />
-        <Route path="/gameclones" element={<GameClones />} />
-        <Route path="/volume" element={<VolumeInput />} />
-        <Route path="/simple" element={<SimpleCompetition />} />
+        <Route path="/text/*" element={<TextInput />} />
+        <Route path="/currency/*" element={<Currency />} />
+        <Route path="/frogger/*" element={<Frogger />} />
+        <Route path="/gameclones/*" element={<GameClones />} />
+        <Route path="/volume/*" element={<VolumeInput />} />
+        <Route path="/simple/*" element={<SimpleCompetition />} />
+        <Route path="/apex/*" element={<Apex />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>

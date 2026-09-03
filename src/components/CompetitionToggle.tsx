@@ -1,5 +1,22 @@
 import { Box, Typography, useTheme, alpha } from "@mui/material";
 import { motion, AnimatePresence } from "framer-motion";
+import { useNavigate, useLocation } from "react-router-dom";
+
+export function useCompetitionState(defaultCompetitor = "val", defaultIteration = "v1") {
+    const navigate = useNavigate();
+    const location = useLocation();
+
+    const parts = location.pathname.split('/').filter(Boolean);
+    const basePath = parts[0] || "";
+    const activeCompetitorId = parts[1] || defaultCompetitor;
+    const activeIterationId = parts[2] || defaultIteration;
+
+    const handleToggleChange = (newCompetitor: string, newIteration: string) => {
+        navigate(`/${basePath}/${newCompetitor}/${newIteration}`);
+    };
+
+    return { activeCompetitorId, activeIterationId, handleToggleChange };
+}
 
 export type Competitor = {
     id: string;

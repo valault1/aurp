@@ -1,6 +1,5 @@
 import { Box } from "@mui/material";
-import { useState } from "react";
-import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
+import { CompetitionToggle, type Competitor, useCompetitionState } from "@/components/CompetitionToggle";
 import { ValVolumeInputV1, ValVolumeInputV2, ValVolumeInputV3 } from "./ValVolumeInput";
 import { BryceVolumeArea } from "./bryce/BryceVolumeArea";
 
@@ -18,13 +17,7 @@ const COMPETITORS: Competitor[] = [
 ];
 
 export function VolumeInput() {
-  const [activeCompetitorId, setActiveCompetitorId] = useState<string>("val");
-  const [activeIterationId, setActiveIterationId] = useState<string>("v1");
-
-  const handleToggleChange = (competitorId: string, iterationId: string) => {
-    setActiveCompetitorId(competitorId);
-    setActiveIterationId(iterationId);
-  };
+  const { activeCompetitorId, activeIterationId, handleToggleChange } = useCompetitionState("val", "v1");
 
   return (
     <Box sx={{ width: "100%", maxWidth: "1200px", mx: "auto", p: { xs: 2, md: 4 } }}>

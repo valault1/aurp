@@ -1,8 +1,7 @@
 import { Box } from "@mui/material";
-import { useState } from "react";
 import { Rearranger } from "./Rearranger";
 import { BattleInput } from "./BattleInput";
-import { CompetitionToggle, type Competitor } from "@/components/CompetitionToggle";
+import { CompetitionToggle, type Competitor, useCompetitionState } from "@/components/CompetitionToggle";
 
 const COMPETITORS: Competitor[] = [
     {
@@ -18,13 +17,7 @@ const COMPETITORS: Competitor[] = [
 ];
 
 export function TextInput() {
-    const [activeCompetitorId, setActiveCompetitorId] = useState<string>("val");
-    const [activeIterationId, setActiveIterationId] = useState<string>("v1");
-
-    const handleToggleChange = (competitorId: string, iterationId: string) => {
-        setActiveCompetitorId(competitorId);
-        setActiveIterationId(iterationId);
-    };
+    const { activeCompetitorId, activeIterationId, handleToggleChange } = useCompetitionState("val", "v1");
 
     return (
         <Box sx={{ width: "100%", maxWidth: "1200px", mx: "auto", p: { xs: 2, md: 4 } }}>
