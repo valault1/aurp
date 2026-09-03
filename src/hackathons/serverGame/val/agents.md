@@ -12,5 +12,9 @@ server (`server/bonk/`) is authoritative.
 - `netConfig.ts` — server URL (`ws://localhost:2567`, override with
   `window.BONK_SERVER_URL`) + FIELD dims (must match the server).
 
+Rematches: on the gameover screen either player can vote with the "Play again"
+button (`BonkGame.tsx`) or the R key (`BonkScene.ts`), both sending a `rematch`
+message. The server starts the next round only once both have voted.
+
 Rendered as `ValServerGameV1` in `../ServerGame.tsx` → route `/servergame`.
 Controls: WASD / arrows to move, SPACE to swing.

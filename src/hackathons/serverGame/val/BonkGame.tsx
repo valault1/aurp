@@ -21,6 +21,8 @@ export function BonkGame() {
   const [mySessionId, setMySessionId] = useState("");
   const [roomId, setRoomId] = useState("");
   const [playerCount, setPlayerCount] = useState(0);
+  const [iAmReady, setIAmReady] = useState(false); // I've asked for a rematch
+  const [readyCount, setReadyCount] = useState(0);
 
   function getClient() {
     if (!clientRef.current) clientRef.current = new Client(BONK_SERVER_URL);
@@ -34,6 +36,8 @@ export function BonkGame() {
     setStatus(room.state?.status ?? "waiting");
     setWinner(room.state?.winner ?? "");
     setPlayerCount(room.state?.players?.size ?? 0);
+    setIAmReady(false);
+    setReadyCount(0);
     console.log(`[bonk] connected  roomId=${room.roomId}  sessionId=${room.sessionId}`);
 
     room.onStateChange((state: any) => {
@@ -43,6 +47,13 @@ export function BonkGame() {
       setStatus(state.status);
       setWinner(state.winner);
       setPlayerCount(state.players?.size ?? 0);
+
+      let ready = 0;
+      state.players?.forEach((p: any) => {
+        if (p.ready) ready += 1;
+      });
+      setReadyCount(ready);
+      setIAmReady(!!state.players?.get(room.sessionId)?.ready);
     });
     room.onError((code, message) => {
       console.error("[bonk] room error", code, message);
@@ -89,6 +100,15 @@ export function BonkGame() {
     }
   }
 
+  /**
+   * Votes for another round. The server starts it once both players have voted,
+   * so a click here isn't guaranteed to restart anything on its own.
+   */
+  function handleRematch() {
+    roomRef.current?.send("rematch");
+    setIAmReady(true); // optimistic; the next state patch confirms it
+  }
+
   function teardownGame() {
     gameRef.current?.destroy(true);
     gameRef.current = null;
@@ -107,6 +127,8 @@ export function BonkGame() {
     setWinner("");
     setRoomId("");
     setPlayerCount(0);
+    setIAmReady(false);
+    setReadyCount(0);
   }
 
   // Boot Phaser once we're in a room and the canvas host is mounted.
@@ -209,6 +231,20 @@ export function BonkGame() {
             ? "You win! 🏆"
             : "You lose 💀"}
         </Typography>
+        {status === "gameover" && (
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleRematch}
+            disabled={iAmReady || playerCount < 2}
+          >
+            {playerCount < 2
+              ? "Waiting for an opponent…"
+              : iAmReady
+              ? `Ready ${readyCount}/2 — waiting…`
+              : "Play again"}
+          </Button>
+        )}
         <Button size="small" variant="outlined" color="inherit" onClick={handleLeave}>
           Leave
         </Button>

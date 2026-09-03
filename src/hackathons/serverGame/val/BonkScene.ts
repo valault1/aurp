@@ -9,6 +9,7 @@ export class BonkScene extends Phaser.Scene {
   private sessionId = "";
   private gfx!: Phaser.GameObjects.Graphics;
   private statusText!: Phaser.GameObjects.Text;
+  private hintText!: Phaser.GameObjects.Text;
   private keys!: {
     up: Phaser.Input.Keyboard.Key;
     down: Phaser.Input.Keyboard.Key;
@@ -19,6 +20,7 @@ export class BonkScene extends Phaser.Scene {
     s: Phaser.Input.Keyboard.Key;
     d: Phaser.Input.Keyboard.Key;
     space: Phaser.Input.Keyboard.Key;
+    r: Phaser.Input.Keyboard.Key;
   };
 
   constructor() {
@@ -41,6 +43,16 @@ export class BonkScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(10);
 
+    this.hintText = this.add
+      .text(FIELD.WIDTH / 2, FIELD.HEIGHT / 2 + 44, "", {
+        fontFamily: "monospace",
+        fontSize: "18px",
+        color: "#cbd5e1",
+        align: "center",
+      })
+      .setOrigin(0.5)
+      .setDepth(10);
+
     const kb = this.input.keyboard!;
     this.keys = {
       up: kb.addKey(Phaser.Input.Keyboard.KeyCodes.UP),
@@ -52,6 +64,7 @@ export class BonkScene extends Phaser.Scene {
       s: kb.addKey(Phaser.Input.Keyboard.KeyCodes.S),
       d: kb.addKey(Phaser.Input.Keyboard.KeyCodes.D),
       space: kb.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE),
+      r: kb.addKey(Phaser.Input.Keyboard.KeyCodes.R),
     };
     // Don't let SPACE / arrows scroll the page.
     kb.addCapture([
@@ -77,6 +90,12 @@ export class BonkScene extends Phaser.Scene {
       swing: k.space.isDown,
     };
     room.send("input", input);
+
+    // R is the keyboard twin of the "Play again" button, so you can call a
+    // rematch without leaving the canvas.
+    if (state.status === "gameover" && Phaser.Input.Keyboard.JustDown(k.r)) {
+      room.send("rematch");
+    }
 
     const g = this.gfx;
     g.clear();
@@ -140,12 +159,25 @@ export class BonkScene extends Phaser.Scene {
     if (state.status === "waiting") {
       this.statusText.setText("Waiting for opponent...").setColor("#e2e8f0");
       this.statusText.setVisible(true);
+      this.hintText.setVisible(false);
     } else if (state.status === "gameover") {
       const iWon = state.winner === this.sessionId;
       this.statusText.setText(iWon ? "YOU WIN! 🏆" : "YOU LOSE").setColor(iWon ? "#4ade80" : "#f87171");
       this.statusText.setVisible(true);
+
+      const players = state.players;
+      const me = players?.get(this.sessionId);
+      this.hintText.setText(
+        (players?.size ?? 0) < 2
+          ? "waiting for an opponent..."
+          : me?.ready
+          ? "waiting for your opponent..."
+          : "press R (or Play again) for a rematch"
+      );
+      this.hintText.setVisible(true);
     } else {
       this.statusText.setVisible(false);
+      this.hintText.setVisible(false);
     }
   }
 }

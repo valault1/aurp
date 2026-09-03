@@ -32,6 +32,7 @@ class Player extends Schema {
   declare seat: number; // 0 or 1
   declare swinging: boolean;
   declare dead: boolean;
+  declare ready: boolean; // has voted for a rematch on the gameover screen
 
   // server-only (plain properties, never serialized):
   vx = 0;
@@ -49,6 +50,7 @@ class Player extends Schema {
     this.seat = 0;
     this.swinging = false;
     this.dead = false;
+    this.ready = false;
   }
 }
 defineTypes(Player, {
@@ -58,6 +60,7 @@ defineTypes(Player, {
   seat: "number",
   swinging: "boolean",
   dead: "boolean",
+  ready: "boolean",
 });
 
 class BonkState extends Schema {
@@ -100,31 +103,74 @@ export class BonkRoom extends Room<BonkState> {
       };
     });
 
+    // Both players have to ask for a rematch before the next round starts, so
+    // nobody gets yanked off the scoreboard before they've read it.
+    this.onMessage("rematch", (client) => {
+      if (this.state.status !== "gameover") return;
+      const p = this.state.players.get(client.sessionId);
+      if (!p || p.ready) return;
+      p.ready = true;
+      const all = [...this.state.players.values()];
+      console.log(
+        `[bonk] REMATCH      id=${this.roomId}  key="${this.key}"  session=${client.sessionId}  ready=${all.filter((q) => q.ready).length}/${all.length}`
+      );
+      if (all.length >= 2 && all.every((q) => q.ready)) this.startMatch();
+    });
+
     this.setSimulationInterval(() => this.update(), TICK_MS);
   }
 
-  override onJoin(client: Client) {
-    const seat = this.state.players.size; // 0 for first, 1 for second
-    const p = new Player();
-    p.seat = seat;
+  /** Puts a player on their seat's mark, facing the middle. */
+  private placeAtSpawn(p: Player) {
     p.y = FIELD.HEIGHT / 2;
-    if (seat === 0) {
+    if (p.seat === 0) {
       p.x = FIELD.WIDTH * 0.32;
       p.facing = 0; // faces right, toward opponent
     } else {
       p.x = FIELD.WIDTH * 0.68;
       p.facing = Math.PI; // faces left, toward opponent
     }
+  }
+
+  /**
+   * Resets both players and flips the room to "playing". Runs for the opening
+   * round and for every rematch, so a round always starts from a clean slate:
+   * alive, still, unarmed, and back on their marks.
+   */
+  private startMatch() {
+    for (const p of this.state.players.values()) {
+      this.placeAtSpawn(p);
+      p.dead = false;
+      p.swinging = false;
+      p.ready = false;
+      p.vx = 0;
+      p.vy = 0;
+      p.swingTimer = 0;
+      p.cooldown = 0;
+      p.hitThisSwing = false;
+      p.input = { up: false, down: false, left: false, right: false, swing: false };
+    }
+    this.state.winner = "";
+    this.state.status = "playing";
+    this.lock(); // no more joiners for this keyphrase room
+    console.log(`[bonk] STARTED      id=${this.roomId}  key="${this.key}"`);
+  }
+
+  override onJoin(client: Client) {
+    // Take whichever seat is free rather than counting players: after someone
+    // leaves and a new player takes their place, size alone can hand out a
+    // duplicate seat and stack both balls on the same side.
+    const taken = new Set([...this.state.players.values()].map((q) => q.seat));
+    const seat = taken.has(0) ? 1 : 0;
+    const p = new Player();
+    p.seat = seat;
+    this.placeAtSpawn(p);
     this.state.players.set(client.sessionId, p);
     console.log(
       `[bonk] JOIN         id=${this.roomId}  key="${this.key}"  seat=${seat}  session=${client.sessionId}  players=${this.state.players.size}`
     );
 
-    if (this.state.players.size >= 2) {
-      this.state.status = "playing";
-      this.lock(); // no more joiners for this keyphrase room
-      console.log(`[bonk] STARTED      id=${this.roomId}  key="${this.key}"`);
-    }
+    if (this.state.players.size >= 2) this.startMatch();
   }
 
   override onLeave(client: Client) {
@@ -138,6 +184,13 @@ export class BonkRoom extends Room<BonkState> {
         this.state.winner = remaining;
         this.state.status = "gameover";
       }
+    }
+
+    // A rematch needs two players. Drop any stale vote and reopen the room so
+    // someone can take the empty seat with the same keyphrase.
+    if (this.state.players.size < 2) {
+      for (const p of this.state.players.values()) p.ready = false;
+      this.unlock();
     }
   }
 

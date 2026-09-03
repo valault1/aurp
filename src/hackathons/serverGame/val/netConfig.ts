@@ -2,7 +2,7 @@
 // window.BONK_SERVER_URL if you ever point the client at a remote box.
 export const BONK_SERVER_URL: string =
   (typeof window !== "undefined" && (window as any).BONK_SERVER_URL) ||
-  "ws://localhost:2567";
+  "ws://100.74.190.11:2567";
 
 // Must match server/bonk/BonkRoom.ts FIELD.
 export const FIELD = {
