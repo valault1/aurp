@@ -4,10 +4,14 @@ import { registerUser, loginUser } from "@/api/auth";
 import { getAllUsers } from "@/api/users";
 import { withAuth } from "@/api/middleware";
 import { getWeather } from "@/api/weather";
+import { shooterUpgrade, shooterWebSocket } from "@/hackathons/serverGame/bryceShooter/server";
 
 const users: Record<string, string> = {};
 
 const server = serve({
+  // Listen on every interface so a friend on the tailnet can reach this machine.
+  hostname: "0.0.0.0",
+
   routes: {
     "/*": index,
 
@@ -15,7 +19,11 @@ const server = serve({
     "/api/login": { POST: loginUser },
     "/api/users": { GET: withAuth(getAllUsers) },
     "/api/weather": { GET: getWeather },
+
+    "/ws/shooter": shooterUpgrade,
   },
+
+  websocket: shooterWebSocket,
 
   development: process.env.NODE_ENV !== "production" && {
     hmr: true,
