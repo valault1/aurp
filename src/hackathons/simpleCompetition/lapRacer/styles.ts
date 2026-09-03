@@ -49,10 +49,15 @@ export const CSS = `
 .hud-chal .ch.time { color:var(--amber); font-variant-numeric:tabular-nums; }
 
 .delta { position:absolute; top:12px; left:50%; transform:translateX(-50%); opacity:0;
-  font:800 22px ui-monospace,Menlo,monospace; padding:4px 14px; border-radius:8px; transition:opacity .2s; }
+  display:flex; flex-direction:column; align-items:center; gap:1px; line-height:1.05;
+  font:800 22px ui-monospace,Menlo,monospace; font-variant-numeric:tabular-nums;
+  padding:4px 14px; border-radius:8px; transition:opacity .2s, background .3s; }
 .delta.show { opacity:1; }
 .delta.ahead { background:rgba(82,193,122,.92); color:#04150b; }
 .delta.behind { background:rgba(224,47,38,.92); color:#fff; }
+.delta.even { background:rgba(96,106,118,.92); color:#f2f4f6; }
+.delta .delta-sub { font:700 12px ui-monospace,Menlo,monospace; opacity:.85; }
+.delta .delta-sub:empty { display:none; }
 
 .hud-map { position:absolute; top:12px; right:12px; width:150px; height:126px;
   background:rgba(8,10,13,.62); backdrop-filter:blur(6px); border-radius:10px;

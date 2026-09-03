@@ -152,9 +152,14 @@ iterations v1–v3). We only use v1 for now (ignore v2/v3 placeholders).
   best-lap whose splits array doesn't span the current layout (±10 segments) was set on
   an OLD track design — both `loadBest` and the card display reject it (its time is
   meaningless and its splits would freeze the live delta mid-lap).
+- **The top chip is MODE-AWARE**: in a VS race it shows the **gap to the next car** in
+  seconds ("▲ GHOST +2.4" chasing / "▼ VIPER −1.8" leading; distance ÷ player speed),
+  colored by a ~0.6s-sampled TREND — green when the gap moves in the player's favor,
+  red against, gray even — with the vs-best delta as a small second line when a record
+  exists. In TIME TRIAL it's the classic live delta vs the best lap.
 - **Live delta rules**: split recording stamps EVERY segment crossed per frame (2-3 at
-  speed — holes would blank the delta); the delta shows from lap 2 only (lap 1 is a
-  standing start) and HIDES on a missing reference instead of freezing.
+  speed — holes would blank the delta); the vs-best delta shows from lap 2 only (lap 1
+  is a standing start) and HIDES on a missing reference instead of freezing.
 - **Dev panel is keyboard-only** (backtick; the Tune button was removed on request).
   It renders above the start screen (z-index 7) and has TWO resets: "reset defaults"
   (tuning) and "reset records" (wipes best laps, race times, challenges — confirm()ed).

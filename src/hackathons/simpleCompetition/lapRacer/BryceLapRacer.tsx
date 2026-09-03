@@ -273,6 +273,12 @@ export function BryceLapRacer() {
       boost: 0, boosting: false, contacts: 0, offroadS: 0,
     };
     let nosFlashUntil = 0; // NOS bar glows briefly when a near-miss fills it
+    // race-gap trend (the top chip): sample the gap every ~0.6s so the gaining/losing
+    // color reflects real movement, not frame-to-frame jitter
+    let gapTargetName = "";
+    let gapSampleT = 0;
+    let gapSampleV = 0;
+    let gapTrend = 0;
     let shiftToastUntil = 0; // small toast above the dash (perfect shift / launch / wheelspin)
     let bogUntil = 0; // wheelspin from a botched launch — throttle does almost nothing
     function toast(text: string, warn = false) {
@@ -357,6 +363,8 @@ export function BryceLapRacer() {
     const lapNumEl = q('[data-el="lapNum"]');
     const posEl = q('[data-el="pos"]');
     const deltaEl = q('[data-el="delta"]');
+    const deltaMainEl = q('[data-el="deltaMain"]');
+    const deltaSubEl = q('[data-el="deltaSub"]');
     const fillGas = q('[data-el="fillGas"]');
     const fillBrake = q('[data-el="fillBrake"]');
     const bannerEl = q('[data-el="banner"]');
@@ -619,6 +627,7 @@ export function BryceLapRacer() {
       S.lap = 0; S.raceTime = 0; S.raceBest = 0;
       S.boost = 0; S.boosting = false; S.contacts = 0; S.offroadS = 0;
       bogUntil = 0;
+      gapTargetName = ""; gapSampleT = 0; gapSampleV = 0; gapTrend = 0;
       shiftChanceUsed.clear();
       curSplits = []; lastSeg = -1; countdownStart = gameTime;
       initTraffic(); initRivals(); applyDiff();
@@ -1104,19 +1113,50 @@ export function BryceLapRacer() {
       fillGas.style.height = (S.gas * 100).toFixed(0) + "%";
       fillBrake.style.height = (S.brake * 100).toFixed(0) + "%";
 
-      // live delta vs the best lap — only from lap 2 on (lap 1 is a standing start,
-      // there's nothing fair to time it against), and HIDE on a missing reference
-      // rather than freezing the last value on screen
-      if (bestSplits && S.phase === "racing" && S.lap > 0) {
-        const seg = Math.floor(S.position / T.SEG_LEN) % N;
-        const ref = bestSplits[seg];
-        if (typeof ref === "number") {
-          const d = S.lapTime - ref;
-          deltaEl.textContent = (d >= 0 ? "+" : "−") + Math.abs(d).toFixed(2);
-          deltaEl.className = "delta show " + (d <= 0 ? "ahead" : "behind");
+      // ---- the top chip: mode-aware ----
+      // VS race: gap to the next car in seconds ("am I gaining?"), trend-colored,
+      //   with the record delta as a small second line when available.
+      // Time trial: the classic live delta vs your best lap.
+      // Both: only from lap 2 (lap 1 is a standing start) in TT; race gap shows always.
+      const seg = Math.floor(S.position / T.SEG_LEN) % N;
+      const bestRef = bestSplits && S.lap > 0 ? bestSplits[seg] : undefined;
+      const bestDelta = typeof bestRef === "number" ? S.lapTime - bestRef : null;
+      const fmtDelta = (d: number) => (d >= 0 ? "+" : "−") + Math.abs(d).toFixed(2);
+
+      if (S.phase === "racing" && raceDiff() && rivals.length) {
+        // nearest car up the road (or, when leading, the pursuer at my heels)
+        const pt = playerTotal();
+        // prefer the closest car AHEAD; only track a pursuer when nobody's ahead
+        let target: Rival | null = null, gapD = 0;
+        for (const r of rivals) {
+          const d = r.lap * trackLen + r.pos - pt;
+          const better = d > 0
+            ? !target || gapD <= 0 || d < gapD
+            : !target || (gapD <= 0 && d > gapD);
+          if (better) { target = r; gapD = d; }
+        }
+        if (target) {
+          const chasing = gapD > 0;
+          const secs = Math.abs(gapD) / (Math.max(S.speed, 50) * T.POS_K);
+          // favor = signed "good for the player" metric: shrinking chase gap or growing cushion
+          const favor = chasing ? -secs : secs;
+          if (target.name !== gapTargetName) {
+            gapTargetName = target.name; gapSampleT = gameTime; gapSampleV = favor; gapTrend = 0;
+          } else if (gameTime - gapSampleT > 0.6) {
+            gapTrend = favor - gapSampleV;
+            gapSampleT = gameTime; gapSampleV = favor;
+          }
+          deltaMainEl.textContent = `${chasing ? "▲" : "▼"} ${target.name} ${chasing ? "+" : "−"}${secs.toFixed(1)}`;
+          deltaSubEl.textContent = bestDelta != null ? fmtDelta(bestDelta) + " vs best" : "";
+          const cls = gapTrend > 0.02 ? "ahead" : gapTrend < -0.02 ? "behind" : "even";
+          deltaEl.className = "delta show " + cls;
         } else {
           deltaEl.className = "delta";
         }
+      } else if (S.phase === "racing" && bestDelta != null) {
+        deltaMainEl.textContent = fmtDelta(bestDelta);
+        deltaSubEl.textContent = "";
+        deltaEl.className = "delta show " + (bestDelta <= 0 ? "ahead" : "behind");
       } else {
         deltaEl.className = "delta";
       }
@@ -1226,7 +1266,10 @@ export function BryceLapRacer() {
             <div className="lap-line"><span className="k">LAST</span><span className="v" data-el="last">--:--.---</span></div>
           </div>
 
-          <div className="delta" data-el="delta">+0.00</div>
+          <div className="delta" data-el="delta">
+            <span data-el="deltaMain">+0.00</span>
+            <span className="delta-sub" data-el="deltaSub" />
+          </div>
 
           <div className="hud-chal" data-el="chal">
             <span className="ch" data-el="chTarmac" />
