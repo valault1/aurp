@@ -1,11 +1,8 @@
 import { Box, Typography } from "@mui/material";
+import { BonkGame } from "./val/BonkGame";
 
 export function ValServerGameV1() {
-  return (
-    <Box sx={{ p: 4, textAlign: "center" }}>
-      <Typography variant="h4">Val Server Game V1</Typography>
-    </Box>
-  );
+  return <BonkGame />;
 }
 
 export function ValServerGameV2() {
