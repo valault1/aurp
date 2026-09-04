@@ -10,9 +10,12 @@
  * Pickups and powers live entirely on this side. That is deliberate: the client predicts
  * movement only, so nothing here can desync it — the worst case is that a power appears a
  * round trip after you stepped on the pad.
+ *
+ * Sockets and the tick clock come from ../net/router. Registered as "shooter", so clients
+ * connect to /ws/shooter.
  */
 
-import type { ServerWebSocket, Server } from "bun";
+import { registerGame, type GameSocket } from "../net/router";
 import {
   ARENA, BIG_DAMAGE, BIG_RADIUS, BIG_SPEED, BOUNCE_LIMIT, BOUNCE_TTL, BULLET_DAMAGE,
   BULLET_RADIUS, BULLET_SPEED, BULLET_TTL, CLIENT_TIMEOUT_MS, CMD_BUDGET_MAX_MS,
@@ -22,8 +25,7 @@ import {
   type BulletState, type ClientMsg, type Cmd, type PlayerState, type Power, type ServerMsg,
 } from "./protocol";
 
-type SocketData = { id: string };
-type Socket = ServerWebSocket<SocketData>;
+type Socket = GameSocket;
 
 type Player = PlayerState & {
   socket: Socket;
@@ -47,7 +49,7 @@ const bullets: Bullet[] = [];
 const padCooldown = PADS.map(() => 0);
 /** Who is currently standing on each pad. Pickups fire on ENTRY, never while parked. */
 const padOccupants: Set<string>[] = PADS.map(() => new Set<string>());
-let nextClientId = 1;
+let joins = 0;
 let nextBulletId = 1;
 let tick = 0;
 
@@ -287,8 +289,7 @@ function stepBullets(dt: number) {
 
 // ---- tick ------------------------------------------------------------------------------
 
-function step() {
-  const dt = TICK_MS / 1000;
+function step(dt: number) {
   const now = Date.now();
   tick++;
 
@@ -335,48 +336,16 @@ function step() {
   broadcast({ t: "state", tick, players: snapshotPlayers, bullets: snapshotBullets, pads });
 }
 
-/**
- * Fixed timestep on an accumulator, polled at twice the tick rate.
- *
- * Do not simplify this to `setInterval(step, TICK_MS)`. Timers drift under load — a busy
- * process fires a 50 ms interval every 55 ms — and since the command budget refills
- * TICK_MS per tick, the server would then hand out sim time slower than clients generate
- * it. Their queues creep up until the backlog trim starts discarding honest commands,
- * which the player sees as a rubber-band every few seconds. Driving ticks from the wall
- * clock instead keeps input supply and demand matched.
- */
-let acc = 0;
-let lastTick = Date.now();
-function loop() {
-  const now = Date.now();
-  // Cap the catch-up so a long stall replays a few ticks, never a spiral.
-  acc = Math.min(acc + (now - lastTick), TICK_MS * 5);
-  lastTick = now;
-  while (acc >= TICK_MS) {
-    acc -= TICK_MS;
-    step();
-  }
-}
+const shooter = {
+  name: "shooter",
+  tick: step,
 
-// `bun --hot` re-evaluates this module on save; without the guard the old interval keeps
-// running and the sim ticks at a multiple of 20 Hz.
-const hot = globalThis as unknown as { __shooterLoop?: ReturnType<typeof setInterval> };
-if (hot.__shooterLoop) clearInterval(hot.__shooterLoop);
-lastTick = Date.now();
-hot.__shooterLoop = setInterval(loop, Math.floor(TICK_MS / 2));
-
-export function shooterUpgrade(req: Request, server: Server): Response | undefined {
-  const ok = server.upgrade(req, { data: { id: `p${nextClientId++}` } satisfies SocketData });
-  return ok ? undefined : new Response("Expected a WebSocket upgrade", { status: 426 });
-}
-
-export const shooterWebSocket = {
   open(socket: Socket) {
     const spot = pickSpawn();
     players.set(socket.data.id, {
       id: socket.data.id,
       name: socket.data.id,
-      color: COLORS[(nextClientId - 2) % COLORS.length]!,
+      color: COLORS[joins++ % COLORS.length]!,
       x: spot.x, y: spot.y, aim: 0,
       hp: MAX_HP, score: 0, deaths: 0, alive: true, seq: 0, pw: {},
       socket, queue: [], budgetMs: CMD_BUDGET_MAX_MS,
@@ -425,3 +394,5 @@ export const shooterWebSocket = {
     console.log(`[shooter] ${socket.data.id} left (${players.size} online)`);
   },
 };
+
+registerGame(shooter);

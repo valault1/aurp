@@ -4,7 +4,10 @@ import { registerUser, loginUser } from "@/api/auth";
 import { getAllUsers } from "@/api/users";
 import { withAuth } from "@/api/middleware";
 import { getWeather } from "@/api/weather";
-import { shooterUpgrade, shooterWebSocket } from "@/hackathons/serverGame/bryceShooter/server";
+import { gameUpgrade, gameWebSocket } from "@/hackathons/serverGame/net/router";
+// Imported for their side effect: each module registers itself with the router.
+import "@/hackathons/serverGame/bryceShooter/server";
+import "@/hackathons/serverGame/provingGrounds/server";
 
 const users: Record<string, string> = {};
 
@@ -20,10 +23,11 @@ const server = serve({
     "/api/users": { GET: withAuth(getAllUsers) },
     "/api/weather": { GET: getWeather },
 
-    "/ws/shooter": shooterUpgrade,
+    // One handler for every game; the last path segment selects which.
+    "/ws/*": gameUpgrade,
   },
 
-  websocket: shooterWebSocket,
+  websocket: gameWebSocket,
 
   development: process.env.NODE_ENV !== "production" && {
     hmr: true,

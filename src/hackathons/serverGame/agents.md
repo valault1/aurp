@@ -1,7 +1,20 @@
 # Server Game Hackathon
 
 **Goal**: Learn real-time multiplayer. Two machines, one authoritative server, played over Tailscale.
-Everything ships on **v1** — v2/v3 are unused placeholders the orchestrator still imports.
+
+- **v1** `bryceShooter/` — NETLAB, a twitch deathmatch. Predicted client.
+- **v2** `provingGrounds/` — a point-and-click RPG. No prediction; see its own agents.md.
+- `net/router.ts` — both games share ONE Bun websocket handler and ONE tick clock.
+
+## `net/router.ts`
+`Bun.serve` accepts exactly one `websocket` handler for the whole process, so games cannot each
+own theirs. The upgrade stamps the game name onto the socket and the router fans open/message/
+close to the right module; connect at `/ws/<name>`. Games register themselves on import, so
+`src/index.ts` imports each server module for its side effect. Adding a game is one file plus one
+`registerGame` call — no changes to `src/index.ts` routes.
+
+Every game is ticked from one wall-clock accumulator at TICK_HZ. A game's own TICK_HZ constant
+must match the router's.
 
 ## `bryceShooter/` — NETLAB
 Top-down deathmatch on raw Bun websockets. No extra deps.
@@ -52,6 +65,11 @@ desync it — a pad lights up a round trip after you touch it, which is the righ
 - Snapshots are full-state JSON, and names/colors are resent every tick.
 - One global room, no room codes: everyone who opens the page is in the same match.
 - Not built yet: alternate weapons, round/score limits, sound.
+
+## Colyseus
+Val's Bonk runs on Colyseus, which cannot join this router: `@colyseus/bun-websockets` builds its
+own Express app and calls `expressApp.listen(port)` with its own websocket handler. It gets its
+own port (2567), started separately by `bun run dev:bonk`.
 
 ## Gotchas
 - The tick loop is a **wall-clock accumulator**, not `setInterval(step, TICK_MS)`. Timers drift
