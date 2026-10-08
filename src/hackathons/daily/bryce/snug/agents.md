@@ -9,6 +9,7 @@ Daily piece-fitting puzzle with a yarn and patchwork look. Rendered by `BryceDai
 - `parts.tsx` — shared visuals (knit patterns, `PatchSvg`, `BoardSvg`, `QuiltBackdrop`, buttons, result card).
 - `Snug.tsx` — game: drag with snap, tap / Space / R to turn (works mid-drag), a turned piece that no longer fits hovers loose with a red-thread tint instead of returning to the basket (symmetric turns stay put), timer starts on first placement, auto-finish on zero holes, "Tie it off" for imperfect submits, replays unscored, "Show a perfect fill" after finishing.
 - **Past quilts**: arrows step back to `LAUNCH_DATE` (backdated to 2026-10-01). Past days are practice: `SnugDay` never loads or saves attempts for them. Future days are not reachable except via `?date=`.
+- `stitches.tsx` — hand-sewn running stitches (uneven, wobbly, shadowed, needle holes; no ply dots, by request). `stitchLoops` + `insetCellLoops` for SVG shapes (pieces, binding, basting grid, quilt patches); `StitchBorder` measures its positioned parent for HTML boxes. No CSS dashed outlines left.
 - `ArtSheet.tsx` — every visual on one page for art review.
 
 ## Gotchas

@@ -3,7 +3,8 @@ import { todayKey } from "../daily";
 import { generatePuzzle } from "./generator";
 import { SHAPES, bounds, cellKey } from "./pieces";
 import { BINDING, FABRICS, FABRIC_STYLES, YARNS, fabricSwatch } from "./quilt";
-import { BoardSvg, Btn, FONT, INK, KnitDefs, PatchSvg, QuiltBackdrop, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, type PieceState } from "./parts";
+import { BoardSvg, Btn, FONT, INK, KnitDefs, PanelStitches, PatchSvg, QuiltBackdrop, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, type PieceState } from "./parts";
+import { StitchBorder } from "./stitches";
 
 const CELL = 30;
 const BOARD_CELL = 28;
@@ -130,13 +131,13 @@ export function SnugArtSheet() {
               borderRadius: 18,
               background: "repeating-linear-gradient(45deg, #d8b98d 0 6px, #cfae80 6px 12px), #d8b98d",
               boxShadow: "inset 0 2px 10px rgba(80,45,20,.35)",
-              outline: "2px dashed rgba(123,59,46,.35)",
-              outlineOffset: -7,
+              position: "relative",
               display: "grid",
               placeItems: "center",
               fontSize: 13,
             }}
           >
+            <StitchBorder inset={7} radius={12} color="#8a5a3c" width={2} stitch={6} gap={4} seed="art-basket" />
             Basket
           </div>
         </div>
@@ -170,6 +171,7 @@ const captionStyle = { fontSize: 13, opacity: 0.7, marginTop: 8, textTransform: 
 function Section({ title, note, children }: { title: string; note: string; children: ReactNode }) {
   return (
     <section style={{ ...panelStyle, maxWidth: 1080, width: "100%" }}>
+      <PanelStitches seed={`art:${title}`} />
       <h2 style={{ fontFamily: SCRIPT, fontSize: 40, lineHeight: 1, margin: 0, color: BINDING }}>{title}</h2>
       <p style={{ fontSize: 14, opacity: 0.8, margin: "6px 0 18px" }}>{note}</p>
       {children}

@@ -3,7 +3,9 @@
 import { useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { GlobalStyles } from "@mui/material";
 import { formatDuration } from "../daily";
-import { bounds, cellKey, outlinePath, type Cell } from "./pieces";
+import { makeRng } from "../daily";
+import { bounds, outlinePath, type Cell } from "./pieces";
+import { StitchBorder, Stitching, insetCellLoops, stitchLoops } from "./stitches";
 import { BINDING, LINEN, THREAD, YARNS, quiltBackground } from "./quilt";
 
 /** SVG units per grid cell. */
@@ -32,6 +34,7 @@ export interface Attempt {
 
 /** Thread color for hole marks and pieces that do not fit. */
 export const RED_THREAD = "#c0392b";
+export const GOLD_THREAD = "#f6c445";
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
@@ -51,9 +54,15 @@ export const panelStyle: CSSProperties = {
   borderRadius: 22,
   background: `repeating-linear-gradient(0deg, rgba(160,130,90,.07) 0 1px, transparent 1px 3px), repeating-linear-gradient(90deg, rgba(160,130,90,.07) 0 1px, transparent 1px 3px), ${LINEN}`,
   boxShadow: "0 18px 50px rgba(30,15,8,.55), 0 2px 0 rgba(255,255,255,.4) inset",
-  outline: `2px dashed rgba(123,59,46,.45)`,
-  outlineOffset: -10,
 };
+
+/** Thread color for stitching on linen. */
+export const RUST_THREAD = "#a35a42";
+
+/** The sewn edge inside a linen panel; place it as the panel's first child. */
+export function PanelStitches({ seed }: { seed: string }) {
+  return <StitchBorder inset={11} radius={14} color={RUST_THREAD} width={2.4} stitch={8} gap={5} seed={seed} />;
+}
 
 export function KnitDefs() {
   return (
@@ -93,6 +102,10 @@ export function PatchSvg({
   const { w, h } = bounds(piece.cells);
   const path = outlinePath(piece.cells, U);
   const yarn = YARNS[piece.color]!;
+  const stitches = useMemo(
+    () => stitchLoops(insetCellLoops(piece.cells, U, 2), makeRng(`patch:${piece.id}`), { stitch: 2.1, gap: 1.3, wobble: 0.22, hole: 0.3 }),
+    [piece.cells, piece.id],
+  );
   const clip = `snug-clip-${piece.id}`;
   return (
     <svg width={w * cell} height={h * cell} viewBox={`0 0 ${w * U} ${h * U}`} style={{ display: "block", overflow: "visible", animation: loose ? "snugHover 1.8s ease-in-out infinite" : undefined }}>
@@ -104,10 +117,10 @@ export function PatchSvg({
       <path d={path} fill={`url(#snug-knit-${piece.color})`} />
       <g clipPath={`url(#${clip})`}>
         {loose && <path d={path} fill={RED_THREAD} opacity={0.3} />}
-        <path d={path} fill="none" stroke={loose ? RED_THREAD : THREAD} strokeOpacity={0.95} strokeWidth={4.4} strokeDasharray="1.7 1.3" />
         <path d={path} fill="none" stroke={yarn.dark} strokeWidth={2.2} />
       </g>
       <path d={path} fill="none" stroke={yarn.dark} strokeWidth={0.8} strokeLinejoin="round" />
+      <Stitching paths={stitches} width={0.88} color={loose ? RED_THREAD : THREAD} />
       {piece.cells.map(([x, y], i) => (
         <rect
           key={i}
@@ -129,15 +142,15 @@ export function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div
       style={{
+        position: "relative",
         minWidth: 84,
         padding: "6px 14px",
         borderRadius: 12,
         background: "rgba(123,59,46,.08)",
-        outline: "1.5px dashed rgba(123,59,46,.4)",
-        outlineOffset: -4,
         textAlign: "center",
       }}
     >
+      <StitchBorder inset={4.5} radius={8} color={RUST_THREAD} width={1.7} stitch={5} gap={3.5} seed={`stat:${label}`} />
       <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", opacity: 0.65 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{value}</div>
     </div>
@@ -151,6 +164,7 @@ export function Btn({ children, onClick, primary, disabled }: { children: ReactN
       onClick={onClick}
       disabled={disabled}
       style={{
+        position: "relative",
         fontFamily: FONT,
         fontSize: 15,
         fontWeight: 500,
@@ -161,11 +175,18 @@ export function Btn({ children, onClick, primary, disabled }: { children: ReactN
         opacity: disabled ? 0.45 : 1,
         color: primary ? THREAD : INK,
         background: primary ? BINDING : "rgba(123,59,46,.1)",
-        outline: `1.5px dashed ${primary ? "rgba(255,246,230,.7)" : "rgba(123,59,46,.45)"}`,
-        outlineOffset: -5,
         boxShadow: primary ? "0 3px 0 #4f2219" : "none",
       }}
     >
+      <StitchBorder
+        inset={5}
+        radius={14}
+        color={primary ? THREAD : RUST_THREAD}
+        width={1.6}
+        stitch={5}
+        gap={3.5}
+        seed={`btn:${typeof children === "string" ? children : "button"}`}
+      />
       {children}
     </button>
   );
@@ -203,11 +224,10 @@ export function ResultCard(props: {
         borderRadius: 20,
         background: LINEN,
         boxShadow: "0 24px 60px rgba(30,15,8,.5)",
-        outline: `2px dashed rgba(123,59,46,.5)`,
-        outlineOffset: -9,
         textAlign: "center",
       }}
     >
+      <StitchBorder inset={10} radius={13} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed="result-card" />
       <div style={{ fontFamily: SCRIPT, fontSize: 46, lineHeight: 1, color: perfect ? "#2e8f83" : BINDING, fontWeight: 700 }}>
         {perfect ? "Perfectly snug!" : `${plural(result.gaps, "hole")} left`}
       </div>
@@ -246,8 +266,8 @@ export function QuiltBackdrop({ dateKey }: { dateKey: string }) {
           background: `radial-gradient(ellipse at 50% 40%, rgba(45,25,15,0) 35%, rgba(45,25,15,.55) 100%) fixed, ${quilt} repeat fixed #8a6a55 !important`,
         },
         "#root > div": { backgroundColor: "transparent !important" },
-        "@keyframes snugRun": { to: { strokeDashoffset: -29 } },
-        ".snug-run": { stroke: "#f6c445", animation: "snugRun 1.1s linear infinite" },
+        "@keyframes snugShimmer": { "0%, 100%": { opacity: 1, filter: "brightness(1)" }, "50%": { opacity: 0.85, filter: "brightness(1.35)" } },
+        ".snug-gold": { animation: "snugShimmer 1.3s ease-in-out infinite" },
         "@keyframes snugHover": { "0%, 100%": { transform: "translateY(-4px)" }, "50%": { transform: "translateY(-8px)" } },
         "@keyframes snugPop": {
           "0%": { transform: "translate(-50%,-46%) scale(.92)", opacity: 0 },
@@ -281,6 +301,17 @@ export function BoardSvg({
   perfect?: boolean;
 }) {
   const path = useMemo(() => outlinePath(board, U), [board]);
+  // Loose basting stitches marking each cell of the quilt top.
+  const basting = useMemo(() => {
+    const rng = makeRng(`basting:${cols}x${rows}:${board.length}`);
+    return board
+      .map(([x, y]) => stitchLoops(insetCellLoops([[x, y]], U, 0.7), rng, { stitch: 1.1, gap: 0.75, wobble: 0.1, hole: 0 }).thread)
+      .join("");
+  }, [board, cols, rows]);
+  const binding = useMemo(
+    () => stitchLoops(insetCellLoops(board, U, -1.75), makeRng(`binding:${cols}x${rows}:${board.length}`), { stitch: 2.4, gap: 1.4, wobble: 0.22, hole: 0.32 }),
+    [board, cols, rows],
+  );
   const padU = pad * U;
   return (
     <svg
@@ -290,12 +321,11 @@ export function BoardSvg({
       viewBox={`${-padU} ${-padU} ${cols * U + 2 * padU} ${rows * U + 2 * padU}`}
     >
       <path d={path} fill="none" stroke={BINDING} strokeWidth={7} strokeLinejoin="round" style={{ filter: "drop-shadow(0 1.5px 1.5px rgba(0,0,0,.35))" }} />
-      <path d={path} fill="none" stroke={THREAD} strokeWidth={4} strokeDasharray="1.6 1.3" className={perfect ? "snug-run" : undefined} />
+
       <path d={path} fill="none" stroke={BINDING} strokeWidth={2.2} strokeLinejoin="round" />
       <path d={path} fill="url(#snug-linen)" />
-      {board.map(([x, y]) => (
-        <rect key={cellKey(x, y)} x={x * U + 0.6} y={y * U + 0.6} width={U - 1.2} height={U - 1.2} rx={1} fill="none" stroke="#b89a74" strokeWidth={0.35} strokeDasharray="0.9 0.7" />
-      ))}
+      <Stitching paths={binding} width={1} color={perfect ? GOLD_THREAD : THREAD} className={perfect ? "snug-gold" : undefined} />
+      <path d={basting} fill="none" stroke="#bf9e76" strokeWidth={0.42} strokeLinecap="round" opacity={0.85} />
       {ghost && (
         <path
           d={outlinePath(ghost.cells, U)}

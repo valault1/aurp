@@ -3,7 +3,8 @@ import { addDays, formatDuration, formatLongDate, loadAttempt, puzzleNumber, sav
 import { DECOY_COUNT, MAX_BOARD, generatePuzzle } from "./generator";
 import { bounds, cellKey, rotateCW, shapeKey, type Cell } from "./pieces";
 import { BINDING, YARNS } from "./quilt";
-import { BoardSvg, Btn, FONT, INK, KnitDefs, PatchSvg, QuiltBackdrop, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, plural, type Attempt, type PieceState, type Spot } from "./parts";
+import { StitchBorder } from "./stitches";
+import { BoardSvg, Btn, FONT, INK, KnitDefs, PanelStitches, PatchSvg, QuiltBackdrop, RUST_THREAD, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, plural, type Attempt, type PieceState, type Spot } from "./parts";
 
 const GAME = "snug";
 /** Backdated a week so there are past quilts to play from day one. */
@@ -325,6 +326,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       <KnitDefs />
 
       <div style={panelStyle}>
+        <PanelStitches seed={`panel:${dateKey}`} />
         <header style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
           <div>
             <div style={{ fontFamily: SCRIPT, fontSize: 64, lineHeight: 0.9, color: BINDING, fontWeight: 700 }}>Snug</div>
@@ -365,10 +367,10 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                   borderRadius: 18,
                   background: "repeating-linear-gradient(45deg, #d8b98d 0 6px, #cfae80 6px 12px), #d8b98d",
                   boxShadow: "inset 0 2px 10px rgba(80,45,20,.35)",
-                  outline: `2px dashed rgba(123,59,46,.35)`,
-                  outlineOffset: -7,
                 }}
-              />
+              >
+                <StitchBorder inset={7} radius={12} color="#8a5a3c" width={2} stitch={6} gap={4} seed="basket" />
+              </div>
 
               <BoardSvg
                 board={puzzle.board}
@@ -490,12 +492,12 @@ function DayArrow({ label, disabled, onClick, children }: { label: string; disab
         lineHeight: 1,
         color: INK,
         background: "rgba(123,59,46,.1)",
-        outline: "1.5px dashed rgba(123,59,46,.4)",
-        outlineOffset: -4,
+        position: "relative",
         cursor: disabled ? "default" : "pointer",
         opacity: disabled ? 0.3 : 1,
       }}
     >
+      <StitchBorder inset={3.5} radius={10} color={RUST_THREAD} width={1.3} stitch={3.5} gap={2.6} seed={`arrow:${label}`} />
       {children}
     </button>
   );

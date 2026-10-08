@@ -1,6 +1,7 @@
 // Yarn colors for the pieces and the date-seeded patchwork quilt drawn behind the page.
 
 import { makeRng, type Rng } from "../daily";
+import { roundedRectLoop, stitchLoops } from "./stitches";
 
 export interface Yarn {
   name: string;
@@ -111,8 +112,18 @@ function patchSvg(rng: Rng, style: number, a: string, b: string): string {
   return (
     patchStyles[style]!(rng, a, b) +
     `<rect width="${PATCH}" height="${PATCH}" fill="url(#puff)"/>` +
-    `<rect x="7" y="7" width="${PATCH - 14}" height="${PATCH - 14}" rx="3" fill="none" stroke="${THREAD}" stroke-opacity=".75" stroke-width="1.6" stroke-dasharray="6 5"/>` +
+    patchStitches(`${style}:${a}:${b}`) +
     `<rect x=".5" y=".5" width="${PATCH - 1}" height="${PATCH - 1}" fill="none" stroke="#3a2418" stroke-opacity=".35" stroke-width="1.5"/>`
+  );
+}
+
+/** A hand-sewn running stitch around the inside of a patch. */
+function patchStitches(seed: string): string {
+  const s = stitchLoops([roundedRectLoop(PATCH, PATCH, 7, 3)], makeRng(`quilt-stitch:${seed}`), { stitch: 6.5, gap: 4.5, wobble: 0.5, hole: 0.7 });
+  return (
+    `<path d="${s.holes}" fill="rgba(50,25,15,.35)"/>` +
+    `<path d="${s.thread}" fill="none" stroke="rgba(40,20,10,.35)" stroke-width="2.4" stroke-linecap="round" transform="translate(.4 .6)"/>` +
+    `<path d="${s.thread}" fill="none" stroke="${THREAD}" stroke-opacity=".85" stroke-width="1.8" stroke-linecap="round"/>`
   );
 }
 
