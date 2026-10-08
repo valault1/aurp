@@ -6,7 +6,7 @@
 
 ## Technologies & Stack
 - **Framework & Libraries**: React 19, React Router, Material UI (MUI), Lucide React.
-- **Build & Dev**: Bun (Server running locally on port 3001).
+- **Build & Dev**: Bun (Server running locally on port 4321; override with `PORT`).
 
 ## Global Context & Design Philosophy
 - The application aims for "UI Reimagined": newer, cooler, radically experimental, and premium ways to interact with digital spaces.
