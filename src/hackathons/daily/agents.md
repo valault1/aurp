@@ -8,4 +8,4 @@
 - Both: date-seeded, one recorded attempt per day, replays allowed but unscored.
 - Full plan: https://claude.ai/code/artifact/05876357-1370-4832-b89c-9ffba16438a5
 
-## Val — TBD (placeholders in ValDaily.tsx).
+## Val — v1 Big Ticket (val/bigTicket); v2 Ticker (ValTicker.tsx); v3 placeholder. Each version has its own file in val/ (ValDailyV1–V3.tsx); ValDaily.tsx just re-exports.
