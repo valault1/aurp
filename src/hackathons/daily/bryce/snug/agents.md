@@ -12,7 +12,11 @@ Daily piece-fitting puzzle with a yarn and patchwork look. Rendered by `BryceDai
 - `stitches.tsx` — hand-sewn running stitches (uneven, wobbly, shadowed, needle holes; no ply dots, by request). `stitchLoops` + `insetCellLoops` for SVG shapes (pieces, binding, basting grid, quilt patches); `StitchBorder` measures its positioned parent for HTML boxes. No CSS dashed outlines left.
 - `ArtSheet.tsx` — every visual on one page for art review.
 
+- **Header / help**: phones (<560px play width) use a two-row header (title + "?" + stats, then date arrows; past days add a "»" back-to-today arrow). Rules live in the `HowToPlay` modal (auto-opens once, `snug.howToSeen`). Phone result card is a fixed bottom sheet.
+- **Layout**: side-by-side is preferred whenever cells stay >= 30px; otherwise stacked (board on top). Basket slots are packed in rows, sized by each piece's longest side so turning never reflows. Fits width and `innerHeight` minus the header. Touch drags float the piece `1.2` cells above the finger (`Drag.lift`).
+
 ## Gotchas
 - `QuiltBackdrop` makes `#root > div` transparent via GlobalStyles while mounted; that is what lets the quilt show behind the whole app.
 - MUI ToggleButton ignores sx selected-state overrides under this theme; the view toggle uses `Btn` instead.
 - Changing the generator changes every day's puzzle, which breaks already-saved attempts for those dates.
+- Chrome ignores `touch-action` on inner SVG shapes; it must be on the piece's outer `<svg>` or touch drags get a `pointercancel` and scroll the page.

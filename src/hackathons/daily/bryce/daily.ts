@@ -34,6 +34,11 @@ export function formatLongDate(key: string): string {
   return new Date(y!, m! - 1, d!).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
 }
 
+export function formatShortDate(key: string): string {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
 export function formatDuration(ms: number): string {
   const total = Math.floor(ms / 1000);
   const h = Math.floor(total / 3600);

@@ -1,18 +1,62 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
-import { addDays, formatDuration, formatLongDate, loadAttempt, puzzleNumber, saveAttempt, todayKey } from "../daily";
-import { DECOY_COUNT, MAX_BOARD, generatePuzzle } from "./generator";
+import { addDays, formatDuration, formatLongDate, formatShortDate, loadAttempt, puzzleNumber, saveAttempt, todayKey } from "../daily";
+import { DECOY_COUNT, generatePuzzle } from "./generator";
 import { bounds, cellKey, rotateCW, shapeKey, type Cell } from "./pieces";
 import { BINDING, YARNS } from "./quilt";
 import { StitchBorder } from "./stitches";
-import { BoardSvg, Btn, FONT, INK, KnitDefs, PanelStitches, PatchSvg, QuiltBackdrop, RUST_THREAD, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, plural, type Attempt, type PieceState, type Spot } from "./parts";
+import { BoardSvg, Btn, FONT, HowToPlay, INK, KnitDefs, PanelStitches, PatchSvg, QuiltBackdrop, RUST_THREAD, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, plural, type Attempt, type PieceState, type Spot } from "./parts";
 
 const GAME = "snug";
+const HOW_TO_SEEN = "snug.howToSeen";
 /** Backdated a week so there are past quilts to play from day one. */
 const LAUNCH_DATE = "2026-10-01";
-const TRAY_SCALE = 0.6;
-const SLOT_CELLS = 5 * TRAY_SCALE;
+const MAX_CELL = 54;
+const MIN_CELL = 18;
+/** Room below the play area for the buttons and the panel's bottom padding. */
+const FOOTER_H = 96;
 /** Room around the board for its binding, in cells. */
 const BOARD_PAD = 0.45;
+/** Side-by-side is kept whenever pieces stay at least this many pixels per square. */
+const SIDE_MIN_CELL = 30;
+/** Below this, a stacked layout lets the header scroll away to keep pieces usable. */
+const STACK_MIN_CELL = 28;
+
+interface Slot {
+  x: number;
+  y: number;
+  size: number;
+}
+
+/** Packs square basket slots (sizes in cells) into centered rows `widthCells` wide. */
+function packTray(sizes: number[], widthCells: number): { slots: Slot[]; w: number; h: number } {
+  const slots: Slot[] = [];
+  let row: number[] = [];
+  let y = 0;
+  let maxW = 0;
+  const flush = () => {
+    const rowW = row.reduce((a, i) => a + sizes[i]!, 0);
+    const rowH = Math.max(...row.map((i) => sizes[i]!));
+    let x = (widthCells - rowW) / 2;
+    for (const i of row) {
+      slots[i] = { x, y: y + (rowH - sizes[i]!) / 2, size: sizes[i]! };
+      x += sizes[i]!;
+    }
+    maxW = Math.max(maxW, rowW);
+    y += rowH;
+    row = [];
+  };
+  let used = 0;
+  sizes.forEach((size, i) => {
+    if (row.length && used + size > widthCells) {
+      flush();
+      used = 0;
+    }
+    row.push(i);
+    used += size;
+  });
+  if (row.length) flush();
+  return { slots, w: maxW, h: y };
+}
 
 interface Drag {
   id: string;
@@ -24,6 +68,8 @@ interface Drag {
   sy: number;
   px: number;
   py: number;
+  /** Pixels the piece floats above the pointer; set for touch so a finger does not hide it. */
+  lift: number;
   moved: boolean;
 }
 
@@ -59,53 +105,117 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   const [selected, setSelected] = useState<string | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [copied, setCopied] = useState(false);
+  const [showHowTo, setShowHowTo] = useState(() => {
+    try {
+      return !initial && !localStorage.getItem(HOW_TO_SEEN);
+    } catch {
+      return false;
+    }
+  });
+  const closeHowTo = useCallback(() => {
+    setShowHowTo(false);
+    try {
+      localStorage.setItem(HOW_TO_SEEN, "1");
+    } catch {
+      // Private browsing can block storage; the guide just shows again next time.
+    }
+  }, []);
   const [now, setNow] = useState(() => Date.now());
   const [width, setWidth] = useState(0);
+  const [viewH, setViewH] = useState(() => window.innerHeight);
+  const coarsePointer = useMemo(() => window.matchMedia("(pointer: coarse)").matches, []);
+  const [headerH, setHeaderH] = useState(200);
   const dragRef = useRef<Drag | null>(null);
   const lastGrab = useRef(0);
   const startRef = useRef<number | null>(null);
   const playRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
 
   useEffect(loadFonts, []);
 
   useEffect(() => {
     const el = playRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setWidth(entry!.contentRect.width));
+    const ro = new ResizeObserver(() => {
+      setWidth(el.getBoundingClientRect().width);
+      setHeaderH(el.offsetTop);
+    });
     ro.observe(el);
-    return () => ro.disconnect();
+    // The header grows when fonts load or "How to play" opens, which moves the play area down.
+    if (topRef.current) ro.observe(topRef.current);
+    const onResize = () => {
+      setViewH(window.innerHeight);
+      setHeaderH(el.offsetTop);
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", onResize);
+    };
   }, []);
 
+  // Each piece's basket slot is sized by its longest side, so turning a piece never reflows the basket.
+  const longest = useMemo(() => puzzle.pieces.map((p) => Math.max(bounds(p.cells).w, bounds(p.cells).h)), [puzzle]);
+
+  // Prefers the basket beside the board; stacks it underneath only when the side layout would make pieces too small.
   const layout = useMemo(() => {
-    const side = width >= 820;
-    const trayCols = side ? 3 : 4;
-    const boardCells = MAX_BOARD + 2 * BOARD_PAD;
-    const cell = side
-      ? clamp(Math.floor((width - 40) / (boardCells + trayCols * SLOT_CELLS + 1)), 30, 54)
-      : clamp(Math.floor((width - 16) / Math.max(boardCells, trayCols * SLOT_CELLS)), 22, 50);
-    const area = boardCells * cell;
-    const slot = SLOT_CELLS * cell;
-    const trayW = trayCols * slot;
-    const trayH = Math.ceil(puzzle.pieces.length / trayCols) * slot;
-    const gap = cell;
-    const totalW = side ? area + gap + trayW : Math.max(area, trayW);
+    const bw = puzzle.cols + 2 * BOARD_PAD;
+    const bh = puzzle.rows + 2 * BOARD_PAD;
+    const availW = Math.max(200, width - 8);
+    const room = viewH - headerH - FOOTER_H;
+
+    const trySide = (cell: number) => {
+      const scale = 0.6;
+      const sizes = longest.map((m) => m * scale + 0.7);
+      for (const trayCells of [11, 9.5, 8, 6.5]) {
+        if ((bw + 1 + trayCells) * cell > availW) continue;
+        const pack = packTray(sizes, trayCells);
+        if (Math.max(bh, pack.h) * cell <= room) return { scale, trayCells, pack };
+      }
+      return null;
+    };
+    const tryStack = (cell: number, height: number) => {
+      const scale = 0.45;
+      const trayCells = Math.min(availW / cell, Math.max(bw, 12));
+      if (bw * cell > availW) return null;
+      const pack = packTray(longest.map((m) => m * scale + 0.55), trayCells);
+      return (bh + 0.5 + pack.h) * cell <= height ? { scale, trayCells, pack } : null;
+    };
+
+    let side = true;
+    let cell = MAX_CELL;
+    let pick = null as ReturnType<typeof trySide>;
+    for (; cell >= SIDE_MIN_CELL && !(pick = trySide(cell)); cell--);
+    if (!pick) {
+      side = false;
+      for (cell = MAX_CELL; cell >= STACK_MIN_CELL && !(pick = tryStack(cell, room)); cell--);
+      if (!pick) for (cell = MAX_CELL; cell > MIN_CELL && !(pick = tryStack(cell, viewH - FOOTER_H - 16)); cell--);
+      pick ??= tryStack(MIN_CELL, Infinity)!;
+    }
+    const { scale, trayCells, pack } = pick!;
+    const areaW = bw * cell;
+    const areaH = bh * cell;
+    const trayW = trayCells * cell;
+    const trayH = pack.h * cell;
+    const gap = side ? cell : cell / 2;
+    const totalW = side ? areaW + gap + trayW : Math.max(areaW, trayW);
     const left = Math.max(0, (width - totalW) / 2);
-    const areaX = side ? left : left + (totalW - area) / 2;
+    const height = side ? Math.max(areaH, trayH) : areaH + gap + trayH;
+    const areaX = side ? left : left + (totalW - areaW) / 2;
+    const areaY = side ? (height - areaH) / 2 : 0;
+    const tray = side
+      ? { x: left + areaW + gap, y: (height - trayH) / 2, w: trayW, h: trayH }
+      : { x: left + (totalW - trayW) / 2, y: areaH + gap, w: trayW, h: trayH };
     return {
       side,
       cell,
-      slot,
-      trayCols,
-      board: {
-        x: areaX + (BOARD_PAD + (MAX_BOARD - puzzle.cols) / 2) * cell,
-        y: (BOARD_PAD + (MAX_BOARD - puzzle.rows) / 2) * cell,
-      },
-      tray: side
-        ? { x: left + area + gap, y: Math.max(0, (area - trayH) / 2), w: trayW, h: trayH }
-        : { x: left + (totalW - trayW) / 2, y: area + gap / 2, w: trayW, h: trayH },
-      height: side ? Math.max(area, trayH) : area + gap / 2 + trayH,
+      trayScale: scale,
+      slots: pack.slots.map((sl) => ({ x: tray.x + sl.x * cell, y: tray.y + sl.y * cell, size: sl.size * cell })),
+      board: { x: areaX + BOARD_PAD * cell, y: areaY + BOARD_PAD * cell },
+      tray,
+      height,
     };
-  }, [width, puzzle]);
+  }, [width, viewH, headerH, puzzle, longest]);
 
   const latest = useRef({ pieces, layout });
   latest.current = { pieces, layout };
@@ -127,7 +237,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       const [cx, cy] = p.cells[d.grab]!;
       const spot = {
         x: Math.round((d.px - (cx + d.fx) * cell - board.x) / cell),
-        y: Math.round((d.py - (cy + d.fy) * cell - board.y) / cell),
+        y: Math.round((d.py - d.lift - (cy + d.fy) * cell - board.y) / cell),
       };
       return fits(p.cells, spot, p.id, all) ? spot : null;
     },
@@ -159,17 +269,18 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   );
 
   const piecePos = (p: PieceState, index: number) => {
-    const { cell, board, tray, slot, trayCols } = layout;
+    const { cell, board, slots } = layout;
     if (drag?.moved && drag.id === p.id) {
       const [cx, cy] = p.cells[drag.grab]!;
-      return { x: drag.px - (cx + drag.fx) * cell, y: drag.py - (cy + drag.fy) * cell, s: 1 };
+      return { x: drag.px - (cx + drag.fx) * cell, y: drag.py - drag.lift - (cy + drag.fy) * cell, s: 1 };
     }
     if (p.at) return { x: board.x + p.at.x * cell, y: board.y + p.at.y * cell, s: 1 };
     const { w, h } = bounds(p.cells);
+    const slot = slots[index]!;
     return {
-      x: tray.x + (index % trayCols) * slot + (slot - w * cell * TRAY_SCALE) / 2,
-      y: tray.y + Math.floor(index / trayCols) * slot + (slot - h * cell * TRAY_SCALE) / 2,
-      s: TRAY_SCALE,
+      x: slot.x + (slot.size - w * cell * layout.trayScale) / 2,
+      y: slot.y + (slot.size - h * cell * layout.trayScale) / 2,
+      s: layout.trayScale,
     };
   };
 
@@ -193,6 +304,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       sy: py,
       px,
       py,
+      lift: e.pointerType === "touch" ? layout.cell * 1.2 : 0,
       moved: false,
     };
     dragRef.current = d;
@@ -316,6 +428,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   const filled = new Set<string>();
   for (const p of pieces) if (p.at && !p.loose && p.id !== liftedId) for (const [x, y] of shift(p.cells, p.at)) filled.add(cellKey(x, y));
 
+  const compact = width > 0 && width < 560;
   const copyShare = () => {
     navigator.clipboard?.writeText(shareLine).then(() => setCopied(true), () => setCopied(false));
   };
@@ -324,35 +437,67 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     <div style={{ fontFamily: FONT, color: INK, width: "100%", userSelect: "none" }}>
       <QuiltBackdrop dateKey={dateKey} />
       <KnitDefs />
+      {showHowTo && <HowToPlay onClose={closeHowTo} touch={coarsePointer} spares={DECOY_COUNT} />}
 
       <div style={panelStyle}>
         <PanelStitches seed={`panel:${dateKey}`} />
-        <header style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontFamily: SCRIPT, fontSize: 64, lineHeight: 0.9, color: BINDING, fontWeight: 700 }}>Snug</div>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, fontSize: 14, marginTop: 4 }}>
+        <div ref={topRef}>
+        {(() => {
+          const title = <div style={{ fontFamily: SCRIPT, fontSize: compact ? 42 : 64, lineHeight: 0.9, color: BINDING, fontWeight: 700 }}>Snug</div>;
+          const dateNav = (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: compact ? 12.5 : 14, marginTop: compact ? 0 : 4, whiteSpace: "nowrap" }}>
               <DayArrow label="Previous quilt" disabled={dateKey <= LAUNCH_DATE} onClick={() => onPickDate(addDays(dateKey, -1))}>
                 &lsaquo;
               </DayArrow>
               <span style={{ opacity: 0.75 }}>
-                No. {number} &middot; {formatLongDate(dateKey)}
+                No. {number} &middot; {compact ? formatShortDate(dateKey) : formatLongDate(dateKey)}
               </span>
               <DayArrow label="Next quilt" disabled={dateKey >= today} onClick={() => onPickDate(addDays(dateKey, 1))}>
                 &rsaquo;
               </DayArrow>
-              {isArchive && <Btn onClick={() => onPickDate(today)}>Back to today</Btn>}
+              {isArchive && (
+                <DayArrow label="Back to today" disabled={false} onClick={() => onPickDate(today)}>
+                  &raquo;
+                </DayArrow>
+              )}
             </div>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <Stat label="Holes" value={String(gaps)} />
-            <Stat label="Time" value={formatDuration(elapsed)} />
-          </div>
-        </header>
-        <p style={{ fontSize: 14, margin: "12px 0 16px", opacity: 0.85, lineHeight: 1.5 }}>
-          Fill every square of the quilt. Drag patches in from the basket. Tap a patch to turn it, or press Space or R, even while you are holding one.{" "}
-          {DECOY_COUNT} patches in the basket are spares you will not need.
-          {isArchive && <strong> This is a past quilt, so play as much as you like; nothing here is scored or saved.</strong>}
-        </p>
+          );
+          const help = (
+            <Btn small onClick={() => setShowHowTo(true)}>
+              {compact ? "?" : "How to play"}
+            </Btn>
+          );
+          const stats = (
+            <div style={{ display: "flex", gap: compact ? 6 : 8, alignItems: "center" }}>
+              <Stat label="Holes" value={String(gaps)} compact={compact} />
+              <Stat label="Time" value={formatDuration(elapsed)} compact={compact} />
+            </div>
+          );
+          // Phones get two tight rows: title, help, and stats, then the date arrows across the full width.
+          return compact ? (
+            <header style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", alignItems: "center", rowGap: 6, columnGap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {title}
+                {help}
+              </div>
+              {stats}
+              <div style={{ gridColumn: "1 / -1" }}>{dateNav}</div>
+            </header>
+          ) : (
+            <header style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
+              <div>
+                {title}
+                {dateNav}
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                {help}
+                {stats}
+              </div>
+            </header>
+          );
+        })()}
+        <div style={{ height: compact ? 10 : 16 }} />
+        </div>
 
         <div ref={playRef} style={{ position: "relative", width: "100%", height: width ? layout.height : 420 }}>
           {width > 0 && (
@@ -435,6 +580,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                   onPlayAgain={playAgain}
                   onClose={() => setShowCard(false)}
                   center={layout.side ? { x: tray.x + tray.w / 2, y: tray.y + tray.h / 2 } : undefined}
+                  sheet={!layout.side}
                 />
               )}
             </>
@@ -444,8 +590,8 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 20, alignItems: "center" }}>
           {phase === "playing" ? (
             <>
-              <Btn disabled={!selected} onClick={() => selected && transformPiece(selected, rotateCW, lastGrab.current)}>Turn</Btn>
-              <Btn onClick={() => setPieces((all) => all.map((p) => ({ ...p, at: null, loose: false })))}>Empty the quilt</Btn>
+              <Btn small={compact} disabled={!selected} onClick={() => selected && transformPiece(selected, rotateCW, lastGrab.current)}>Turn</Btn>
+              <Btn small={compact} onClick={() => setPieces((all) => all.map((p) => ({ ...p, at: null, loose: false })))}>{compact ? "Empty" : "Empty the quilt"}</Btn>
               <span style={{ flex: 1 }} />
               {(isReplay || isArchive) && (
                 <span style={{ fontSize: 13, opacity: 0.7 }}>{isArchive ? "Past quilt, not scored" : "Replay, not scored"}</span>
@@ -453,19 +599,19 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
               {confirming ? (
                 <>
                   <span style={{ fontSize: 14 }}>Tie it off with {plural(gaps, "hole")}?</span>
-                  <Btn onClick={() => setConfirming(false)}>Keep going</Btn>
-                  <Btn primary onClick={finish}>Tie it off</Btn>
+                  <Btn small={compact} onClick={() => setConfirming(false)}>Keep going</Btn>
+                  <Btn small={compact} primary onClick={finish}>Tie it off</Btn>
                 </>
               ) : (
-                <Btn primary disabled={covered === 0} onClick={() => setConfirming(true)}>Tie it off</Btn>
+                <Btn small={compact} primary disabled={covered === 0} onClick={() => setConfirming(true)}>Tie it off</Btn>
               )}
             </>
           ) : (
             <>
               {revealing && <span style={{ fontSize: 14 }}>Showing one perfect fill.</span>}
               <span style={{ flex: 1 }} />
-              {!showCard && <Btn onClick={() => setShowCard(true)}>View result</Btn>}
-              <Btn primary onClick={playAgain}>Play again (unscored)</Btn>
+              {!showCard && <Btn small={compact} onClick={() => setShowCard(true)}>View result</Btn>}
+              <Btn small={compact} primary onClick={playAgain}>Play again (unscored)</Btn>
             </>
           )}
         </div>

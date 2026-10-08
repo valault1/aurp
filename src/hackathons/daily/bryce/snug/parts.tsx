@@ -1,10 +1,10 @@
 // Visual building blocks shared by the Snug game and its art sheet.
 
-import { useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useMemo, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { GlobalStyles } from "@mui/material";
 import { formatDuration } from "../daily";
 import { makeRng } from "../daily";
-import { bounds, outlinePath, type Cell } from "./pieces";
+import { SHAPES, bounds, outlinePath, rotateCW, type Cell } from "./pieces";
 import { StitchBorder, Stitching, insetCellLoops, stitchLoops } from "./stitches";
 import { BINDING, LINEN, THREAD, YARNS, quiltBackground } from "./quilt";
 
@@ -108,7 +108,14 @@ export function PatchSvg({
   );
   const clip = `snug-clip-${piece.id}`;
   return (
-    <svg width={w * cell} height={h * cell} viewBox={`0 0 ${w * U} ${h * U}`} style={{ display: "block", overflow: "visible", animation: loose ? "snugHover 1.8s ease-in-out infinite" : undefined }}>
+    <svg width={w * cell} height={h * cell} viewBox={`0 0 ${w * U} ${h * U}`} style={{
+        display: "block",
+        overflow: "visible",
+        // Chrome ignores touch-action on inner SVG shapes, so the outer svg stops touch drags from scrolling the page.
+        touchAction: interactive ? "none" : undefined,
+        animation: loose ? "snugHover 1.8s ease-in-out infinite" : undefined,
+      }}
+    >
       <defs>
         <clipPath id={clip}>
           <path d={path} />
@@ -138,13 +145,13 @@ export function PatchSvg({
   );
 }
 
-export function Stat({ label, value }: { label: string; value: string }) {
+export function Stat({ label, value, compact = false }: { label: string; value: string; compact?: boolean }) {
   return (
     <div
       style={{
         position: "relative",
-        minWidth: 84,
-        padding: "6px 14px",
+        minWidth: compact ? 64 : 84,
+        padding: compact ? "5px 10px" : "6px 14px",
         borderRadius: 12,
         background: "rgba(123,59,46,.08)",
         textAlign: "center",
@@ -152,12 +159,24 @@ export function Stat({ label, value }: { label: string; value: string }) {
     >
       <StitchBorder inset={4.5} radius={8} color={RUST_THREAD} width={1.7} stitch={5} gap={3.5} seed={`stat:${label}`} />
       <div style={{ fontSize: 11, letterSpacing: 1.2, textTransform: "uppercase", opacity: 0.65 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{value}</div>
+      <div style={{ fontSize: compact ? 18 : 22, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{value}</div>
     </div>
   );
 }
 
-export function Btn({ children, onClick, primary, disabled }: { children: ReactNode; onClick: () => void; primary?: boolean; disabled?: boolean }) {
+export function Btn({
+  children,
+  onClick,
+  primary,
+  disabled,
+  small,
+}: {
+  children: ReactNode;
+  onClick: () => void;
+  primary?: boolean;
+  disabled?: boolean;
+  small?: boolean;
+}) {
   return (
     <button
       type="button"
@@ -166,9 +185,9 @@ export function Btn({ children, onClick, primary, disabled }: { children: ReactN
       style={{
         position: "relative",
         fontFamily: FONT,
-        fontSize: 15,
+        fontSize: small ? 14 : 15,
         fontWeight: 500,
-        padding: "9px 18px",
+        padding: small ? "8px 13px" : "9px 18px",
         borderRadius: 999,
         border: "none",
         cursor: disabled ? "default" : "pointer",
@@ -206,21 +225,24 @@ export function ResultCard(props: {
   onClose: () => void;
   /** Card center in the play area, in px; defaults to the middle. */
   center?: { x: number; y: number };
+  /** Shows the card as a compact sheet pinned to the bottom of the screen (phones). */
+  sheet?: boolean;
   note?: string;
 }) {
-  const { result, recorded, isReplay, center } = props;
+  const { result, recorded, isReplay, center, sheet = false } = props;
   const perfect = result.gaps === 0;
   return (
     <div
       style={{
-        position: "absolute",
+        position: sheet ? "fixed" : "absolute",
         left: center ? center.x : "50%",
-        top: center ? center.y : "50%",
-        transform: "translate(-50%,-50%)",
-        animation: "snugPop 260ms ease-out",
+        top: sheet ? "auto" : center ? center.y : "50%",
+        bottom: sheet ? 10 : "auto",
+        transform: sheet ? "translate(-50%,0)" : "translate(-50%,-50%)",
+        animation: `${sheet ? "snugPopTop" : "snugPop"} 260ms ease-out`,
         zIndex: 80,
-        width: "min(420px, calc(100% - 16px))",
-        padding: "26px 24px 22px",
+        width: sheet ? "min(420px, calc(100vw - 20px))" : "min(420px, calc(100% - 16px))",
+        padding: sheet ? "18px 16px 14px" : "26px 24px 22px",
         borderRadius: 20,
         background: LINEN,
         boxShadow: "0 24px 60px rgba(30,15,8,.5)",
@@ -228,7 +250,7 @@ export function ResultCard(props: {
       }}
     >
       <StitchBorder inset={10} radius={13} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed="result-card" />
-      <div style={{ fontFamily: SCRIPT, fontSize: 46, lineHeight: 1, color: perfect ? "#2e8f83" : BINDING, fontWeight: 700 }}>
+      <div style={{ fontFamily: SCRIPT, fontSize: sheet ? 36 : 46, lineHeight: 1, color: perfect ? "#2e8f83" : BINDING, fontWeight: 700 }}>
         {perfect ? "Perfectly snug!" : `${plural(result.gaps, "hole")} left`}
       </div>
       <div style={{ fontSize: 15, marginTop: 8 }}>
@@ -247,9 +269,17 @@ export function ResultCard(props: {
         </div>
       )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 18 }}>
-        {!perfect && <Btn onClick={props.onReveal}>Show a perfect fill</Btn>}
-        <Btn onClick={props.onClose}>Look at my quilt</Btn>
-        <Btn primary onClick={props.onPlayAgain}>Play again (unscored)</Btn>
+        {!perfect && (
+          <Btn small={sheet} onClick={props.onReveal}>
+            Show a perfect fill
+          </Btn>
+        )}
+        <Btn small={sheet} onClick={props.onClose}>
+          Look at my quilt
+        </Btn>
+        <Btn small={sheet} primary onClick={props.onPlayAgain}>
+          Play again (unscored)
+        </Btn>
       </div>
       <div style={{ fontSize: 12, marginTop: 14, opacity: 0.6 }}>A new quilt arrives at midnight.</div>
     </div>
@@ -269,6 +299,12 @@ export function QuiltBackdrop({ dateKey }: { dateKey: string }) {
         "@keyframes snugShimmer": { "0%, 100%": { opacity: 1, filter: "brightness(1)" }, "50%": { opacity: 0.85, filter: "brightness(1.35)" } },
         ".snug-gold": { animation: "snugShimmer 1.3s ease-in-out infinite" },
         "@keyframes snugHover": { "0%, 100%": { transform: "translateY(-4px)" }, "50%": { transform: "translateY(-8px)" } },
+        "@keyframes snugPopIn": { "0%": { transform: "scale(.92)", opacity: 0 }, "100%": { transform: "scale(1)", opacity: 1 } },
+        "@keyframes snugFadeIn": { "0%": { opacity: 0 }, "100%": { opacity: 1 } },
+        "@keyframes snugPopTop": {
+          "0%": { transform: "translate(-50%,4%) scale(.92)", opacity: 0 },
+          "100%": { transform: "translate(-50%,0) scale(1)", opacity: 1 },
+        },
         "@keyframes snugPop": {
           "0%": { transform: "translate(-50%,-46%) scale(.92)", opacity: 0 },
           "100%": { transform: "translate(-50%,-50%) scale(1)", opacity: 1 },
@@ -346,5 +382,113 @@ export function BoardSvg({
         />
       ))}
     </svg>
+  );
+}
+
+function MiniPatch({ shape, color, cell = 14, turned = 0 }: { shape: string; color: number; cell?: number; turned?: number }) {
+  let cells = SHAPES[shape]!;
+  for (let i = 0; i < turned; i++) cells = rotateCW(cells);
+  return <PatchSvg piece={{ id: `howto-${shape}-${turned}`, cells, color, at: null }} cell={cell} interactive={false} onDown={() => {}} />;
+}
+
+function Arrow({ curve = false }: { curve?: boolean }) {
+  return (
+    <svg width={30} height={24} viewBox="0 0 30 24" style={{ flexShrink: 0 }}>
+      <path d={curve ? "M6 18 A9 9 0 1 1 22 16" : "M3 12 H23"} fill="none" stroke={RUST_THREAD} strokeWidth={2.4} strokeLinecap="round" strokeDasharray="4 3" />
+      <path d={curve ? "M17 13 L22.5 16.5 L24 10" : "M18 6 L25 12 L18 18"} fill="none" stroke={RUST_THREAD} strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function Step({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div style={{ flex: "1 1 120px", display: "grid", justifyItems: "center", gap: 8, padding: "12px 8px 10px", borderRadius: 14, background: "rgba(123,59,46,.07)" }}>
+      <div style={{ height: 52, display: "flex", alignItems: "center", gap: 4 }}>{children}</div>
+      <div style={{ fontSize: 13, fontWeight: 600 }}>{title}</div>
+    </div>
+  );
+}
+
+const SQUARE: Cell[] = [[0, 0], [1, 0], [0, 1], [1, 1]];
+
+/** The rules, shown as a stitched card over a dimmed page. */
+export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; touch: boolean; spares: number }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const section = (heading: string, body: ReactNode) => (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: 15 }}>{heading}</div>
+      <div style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.85 }}>{body}</div>
+    </div>
+  );
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, zIndex: 1300, display: "grid", placeItems: "center", padding: 12, background: "rgba(40,22,14,.5)", animation: "snugFadeIn 200ms ease-out" }}
+    >
+      <div
+        role="dialog"
+        aria-label="How to play"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "relative",
+          display: "flex",
+          width: "min(480px, 100%)",
+          maxHeight: "calc(100dvh - 24px)",
+          padding: 15,
+          borderRadius: 20,
+          background: LINEN,
+          boxShadow: "0 24px 60px rgba(30,15,8,.5)",
+          animation: "snugPopIn 260ms ease-out",
+          fontFamily: FONT,
+          color: INK,
+        }}
+      >
+        <StitchBorder inset={10} radius={13} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed="how-to-play" />
+        {/* Text scrolls inside the stitched edge so the seam stays put. */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px 6px" }}>
+        <div style={{ fontFamily: SCRIPT, fontSize: 44, lineHeight: 1, color: BINDING, fontWeight: 700, textAlign: "center" }}>How to play</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
+          <Step title="Drag a patch in">
+            <MiniPatch shape="T4" color={5} />
+            <Arrow />
+            <BoardSvg board={[[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]]} cols={3} rows={2} cell={14} pad={0.45} />
+          </Step>
+          <Step title={touch ? "Tap to turn" : "Tap, Space, or R to turn"}>
+            <MiniPatch shape="L4" color={1} />
+            <Arrow curve />
+            <MiniPatch shape="L4" color={1} turned={1} />
+          </Step>
+          <Step title="Leave no holes">
+            <div style={{ position: "relative" }}>
+              <BoardSvg board={SQUARE} cols={2} rows={2} cell={18} pad={0.45} perfect />
+              <div style={{ position: "absolute", left: 0.45 * 18, top: 0.45 * 18 }}>
+                <PatchSvg piece={{ id: "howto-fill", cells: SQUARE, color: 3, at: null }} cell={18} interactive={false} onDown={() => {}} />
+              </div>
+            </div>
+          </Step>
+        </div>
+        {section("Fill the quilt", "Every square of today's quilt can be filled exactly with patches from the basket.")}
+        {section("Watch for spares", `${spares} patches in the basket are spares that do not belong anywhere. Part of the puzzle is working out which.`)}
+        {section(
+          "Move and turn",
+          <>
+            Drag a patch onto the quilt and it snaps into place. {touch ? "Tap a patch to turn it." : "Tap it, or press Space or R (even mid-drag), to turn it."} Patches turn but never
+            flip. Turn a placed patch where it no longer fits and it hovers in red thread until you turn or move it again.
+          </>,
+        )}
+        {section("Scoring", "Fewer holes is better, and time breaks ties. The clock starts with your first patch. A perfect fill finishes on its own; otherwise press Tie it off.")}
+        {section("One quilt a day", "Your first finish each day is your recorded result. Replays and past quilts are just for fun. A new quilt arrives at midnight.")}
+        <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
+          <Btn primary onClick={onClose}>
+            Start stitching
+          </Btn>
+        </div>
+        </div>
+      </div>
+    </div>
   );
 }
