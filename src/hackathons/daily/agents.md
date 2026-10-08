@@ -3,7 +3,7 @@
 **Goal**: Each person builds games someone would come back to play once a day (think Wordle). The only shared rule is the "daily" theme; Val and Bryce build unrelated games. Each iteration slot (v1–v3) is a separate game, not a version of the previous one.
 
 ## Bryce
-- **v1 Snug** — daily piece-fitting puzzle. Board is reverse-tiled from the day's pieces, so a zero-gap fill always exists. Score: empty cells, time as tiebreaker. Not started.
+- **v1 Snug** — daily piece-fitting puzzle, yarn and quilt theme. Built; see `bryce/snug/agents.md`.
 - **v2 Daily Tactics** (working name) — one deterministic tactics encounter per day, push mechanics, enemies telegraph moves. Score: turns, then health lost; time shown, never scored. Not started.
 - Both: date-seeded, one recorded attempt per day, replays allowed but unscored.
 - Full plan: https://claude.ai/code/artifact/05876357-1370-4832-b89c-9ffba16438a5

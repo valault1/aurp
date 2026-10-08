@@ -14,6 +14,8 @@ const users: Record<string, string> = {};
 const server = serve({
   // Listen on every interface so a friend on the tailnet can reach this machine.
   hostname: "0.0.0.0",
+  // Default avoids 3000/3001/5173/5174/5180, which are used by other local projects.
+  port: Number(process.env.PORT ?? 4321),
 
   routes: {
     "/*": index,
