@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "aurp-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["-c", "PORT=3001 bun --hot src/index.ts"],
+      "port": 3001
+    }
+  ]
+}
