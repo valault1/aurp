@@ -71,8 +71,8 @@ export function rotations(cells: readonly Cell[]): Cell[][] {
   return out;
 }
 
-/** SVG path tracing the outer boundary of a set of cells, as closed loops in `unit`-sized cells. */
-export function outlinePath(cells: readonly Cell[], unit: number): string {
+/** Boundary loops of a set of cells, as corner points in cell units. */
+export function outlineLoops(cells: readonly Cell[]): [number, number][][] {
   const has = new Set(cells.map(([x, y]) => cellKey(x, y)));
   const edges = new Map<string, [number, number][]>();
   const add = (ax: number, ay: number, bx: number, by: number) => {
@@ -87,7 +87,7 @@ export function outlinePath(cells: readonly Cell[], unit: number): string {
     if (!has.has(cellKey(x - 1, y))) add(x, y + 1, x, y);
   }
 
-  const parts: string[] = [];
+  const loops: [number, number][][] = [];
   for (const [start, outs] of edges) {
     while (outs.length) {
       const [sx, sy] = start.split(",").map(Number) as [number, number];
@@ -99,13 +99,21 @@ export function outlinePath(cells: readonly Cell[], unit: number): string {
         if (!more?.length) break;
         next = more.pop()!;
       }
-      const corners = pts.filter((p, i) => {
-        const a = pts[(i - 1 + pts.length) % pts.length]!;
-        const b = pts[(i + 1) % pts.length]!;
-        return (p[0] - a[0]) * (b[1] - p[1]) !== (p[1] - a[1]) * (b[0] - p[0]);
-      });
-      parts.push("M" + corners.map(([x, y]) => `${x * unit} ${y * unit}`).join("L") + "Z");
+      loops.push(
+        pts.filter((p, i) => {
+          const a = pts[(i - 1 + pts.length) % pts.length]!;
+          const b = pts[(i + 1) % pts.length]!;
+          return (p[0] - a[0]) * (b[1] - p[1]) !== (p[1] - a[1]) * (b[0] - p[0]);
+        }),
+      );
     }
   }
-  return parts.join("");
+  return loops;
+}
+
+/** SVG path tracing the outer boundary of a set of cells, as closed loops in `unit`-sized cells. */
+export function outlinePath(cells: readonly Cell[], unit: number): string {
+  return outlineLoops(cells)
+    .map((corners) => "M" + corners.map(([x, y]) => `${x * unit} ${y * unit}`).join("L") + "Z")
+    .join("");
 }

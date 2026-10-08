@@ -4,7 +4,7 @@
 
 ## Bryce
 - **v1 Snug** — daily piece-fitting puzzle, yarn and quilt theme. Built; see `bryce/snug/agents.md`.
-- **v2 Daily Tactics** (working name) — one deterministic tactics encounter per day, push mechanics, enemies telegraph moves. Score: turns, then health lost; time shown, never scored. Not started.
+- **v2 Brink** — daily tactics fight, ink-and-parchment cliffs. Playable, plus art sheet. See `bryce/brink/agents.md`.
 - Both: date-seeded, one recorded attempt per day, replays allowed but unscored.
 - Full plan: https://claude.ai/code/artifact/05876357-1370-4832-b89c-9ffba16438a5
 
