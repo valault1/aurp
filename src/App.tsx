@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
-import { Box, AppBar, Toolbar, Typography, Button, Container, Paper, Chip, IconButton, alpha, useTheme } from "@mui/material";
-import { Settings as SettingsIcon, Code2 } from "lucide-react";
+import { Box, AppBar, Toolbar, Typography, Button, ButtonBase, Container, Paper, Chip, IconButton, alpha, useTheme } from "@mui/material";
+import { Settings as SettingsIcon, Code2, ChevronDown, ChevronUp } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Login } from "@/components/Login";
 import { Settings } from "@/components/Settings";
@@ -18,18 +18,42 @@ import { SnugPage, NorrisQuestPage } from "@/hackathons/daily/ProdGames";
 import { Daily } from "@/hackathons/daily/Daily";
 import { motion } from "framer-motion";
 
+const NAV_HIDDEN_KEY = "aurp.navHidden";
+
 export function App() {
   const { token, username, loading, logout } = useAuth();
   const location = useLocation();
   const theme = useTheme();
-  const [atTop, setAtTop] = useState(true);
+  const [navHidden, setNavHidden] = useState(() => {
+    try {
+      return localStorage.getItem(NAV_HIDDEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  const barRef = useRef<HTMLElement>(null);
+  const [bar, setBar] = useState({ height: 64, color: "#161824" });
 
+  // The tab matches the bar's themed color and the bar slides up by its own height; the bar only exists once loading ends.
   useEffect(() => {
-    const onScroll = () => setAtTop(window.scrollY <= 0);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setBar({ height: el.offsetHeight, color: getComputedStyle(el).backgroundColor });
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [theme, loading]);
+
+  const toggleNav = () =>
+    setNavHidden((hidden) => {
+      try {
+        localStorage.setItem(NAV_HIDDEN_KEY, hidden ? "0" : "1");
+      } catch {
+        // Storage can be blocked; the choice just will not persist.
+      }
+      return !hidden;
+    });
 
   if (loading) return <Typography>Loading...</Typography>;
 
@@ -49,16 +73,16 @@ export function App() {
         color: "text.primary",
       }}
     >
-      <AppBar
-        position="sticky"
-        elevation={0}
+      <Box
         sx={{
-          opacity: atTop ? 1 : 0,
-          pointerEvents: atTop ? "auto" : "none",
-          transition: "opacity 0.3s ease",
+          position: "relative",
+          zIndex: 1100,
+          marginTop: navHidden ? `${-bar.height}px` : 0,
+          transition: "margin-top 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
         }}
       >
-        <Toolbar sx={{ gap: 2 }}>
+      <AppBar ref={barRef} position="static" elevation={0}>
+        <Toolbar sx={{ gap: { xs: 1, sm: 2 } }}>
           <Chip
             label="UI Reimagined"
             component={Link}
@@ -68,7 +92,8 @@ export function App() {
               textDecoration: "none",
               fontWeight: location.pathname === "/about" ? 900 : 700,
               letterSpacing: "0.5px",
-              mr: 2,
+              mr: { xs: 0, sm: 2 },
+              flexShrink: 0,
               backgroundColor: location.pathname === "/about"
                 ? alpha(theme.palette.primary.main, 0.2)
                 : "rgba(255, 255, 255, 0.05)",
@@ -84,7 +109,8 @@ export function App() {
               }
             }}
           />
-          <Box sx={{ flexGrow: 1, display: 'flex', gap: 1 }}>
+          {/* On narrow screens the links scroll sideways instead of widening the page. */}
+          <Box sx={{ flexGrow: 1, display: 'flex', gap: { xs: 0, sm: 1 }, minWidth: 0, overflowX: 'auto', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
             {navItems.map((item) => {
               const isActive = location.pathname.startsWith(item.path);
               return (
@@ -95,7 +121,9 @@ export function App() {
                   to={item.path}
                   sx={{
                     fontWeight: isActive ? 800 : 500,
-                    px: 3,
+                    px: { xs: 1.25, sm: 3 },
+                    minWidth: 0,
+                    flexShrink: 0,
                     borderRadius: "12px",
                     position: "relative",
                     color: isActive ? "#ffffff" : "rgba(255,255,255,0.6)",
@@ -163,6 +191,30 @@ export function App() {
           </IconButton>
         </Toolbar>
       </AppBar>
+        {/* A small tab hangs below the bar; it stays visible when the bar slides away so it can bring it back. */}
+        <ButtonBase
+          onClick={toggleNav}
+          aria-label={navHidden ? "Show navigation" : "Hide navigation"}
+          title={navHidden ? "Show navigation" : "Hide navigation"}
+          sx={{
+            position: "absolute",
+            top: "100%",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 48,
+            height: 18,
+            borderRadius: "0 0 12px 12px",
+            backgroundColor: bar.color,
+            color: "rgba(255,255,255,0.75)",
+            boxShadow: "0 3px 8px rgba(0,0,0,0.25)",
+            transition: "color 0.2s ease",
+            "&:hover": { color: "#ffffff" },
+          }}
+        >
+          {/* The tab merges with the bar above it, so the up arrow sits a touch high to look centered. */}
+          {navHidden ? <ChevronDown size={16} /> : <ChevronUp size={16} style={{ transform: "translateY(-2px)" }} />}
+        </ButtonBase>
+      </Box>
 
       <Routes>
         <Route path="/" element={<Navigate to="/apex" />} />

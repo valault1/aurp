@@ -10,6 +10,7 @@
 
 ## Global Context & Design Philosophy
 - The application aims for "UI Reimagined": newer, cooler, radically experimental, and premium ways to interact with digital spaces.
+- **Top navbar**: collapsible app-wide via a small tab under it (`App.tsx`, remembered in `localStorage["aurp.navHidden"]`); it slides up by its measured height. No scroll-to-fade.
 - **Theme System**: The app uses a global Material UI `ThemeProvider` connected to `localStorage` via a custom `ThemeContext` (`src/context/ThemeContext.tsx`).
 - We currently support 5 premium aesthetic themes: `ice`, `midnight`, `cyberpunk`, `forest`, and `sunset`.
 
