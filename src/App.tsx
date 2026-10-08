@@ -1,9 +1,11 @@
+import { useEffect, useState } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { Box, AppBar, Toolbar, Typography, Button, Container, Paper, Chip, IconButton, alpha, useTheme } from "@mui/material";
-import { Settings as SettingsIcon } from "lucide-react";
+import { Settings as SettingsIcon, Code2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Login } from "@/components/Login";
 import { Settings } from "@/components/Settings";
+import { DevHub } from "@/components/DevHub";
 import { TextInput } from "@/hackathons/text_input/TextInput";
 import { Currency } from "@/hackathons/currency/Currency";
 import { Frogger } from "@/hackathons/frogger/Frogger";
@@ -12,6 +14,7 @@ import { VolumeInput } from "@/hackathons/volumeInput/VolumeInput";
 import { SimpleCompetition } from "@/hackathons/simpleCompetition/SimpleCompetition";
 import { Apex } from "@/hackathons/apex/Apex";
 import { ServerGame } from "@/hackathons/serverGame/ServerGame";
+import { SnugPage, NorrisQuestPage } from "@/hackathons/daily/ProdGames";
 import { Daily } from "@/hackathons/daily/Daily";
 import { motion } from "framer-motion";
 
@@ -19,19 +22,21 @@ export function App() {
   const { token, username, loading, logout } = useAuth();
   const location = useLocation();
   const theme = useTheme();
+  const [atTop, setAtTop] = useState(true);
+
+  useEffect(() => {
+    const onScroll = () => setAtTop(window.scrollY <= 0);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   if (loading) return <Typography>Loading...</Typography>;
 
   const navItems = [
-    { label: "Text", path: "/text" },
-    { label: "Currency", path: "/currency" },
-    { label: "Frogger", path: "/frogger" },
-    { label: "Game Clones", path: "/gameclones" },
-    { label: "Volume", path: "/volume" },
-    { label: "Simple", path: "/simple" },
     { label: "Apex", path: "/apex" },
-    { label: "Server Game", path: "/servergame" },
-    { label: "Daily", path: "/daily" },
+    { label: "Snug", path: "/snug" },
+    { label: "NorrisQuest", path: "/norrisquest" },
   ];
 
   return (
@@ -44,7 +49,15 @@ export function App() {
         color: "text.primary",
       }}
     >
-      <AppBar position="static" elevation={0}>
+      <AppBar
+        position="sticky"
+        elevation={0}
+        sx={{
+          opacity: atTop ? 1 : 0,
+          pointerEvents: atTop ? "auto" : "none",
+          transition: "opacity 0.3s ease",
+        }}
+      >
         <Toolbar sx={{ gap: 2 }}>
           <Chip
             label="UI Reimagined"
@@ -126,6 +139,19 @@ export function App() {
           <IconButton
             color="inherit"
             component={Link}
+            to="/dev"
+            title="Dev"
+            sx={{
+              backgroundColor: location.pathname === "/dev" ? alpha(theme.palette.primary.main, 0.1) : "transparent",
+              color: location.pathname === "/dev" ? theme.palette.primary.main : "inherit",
+              border: `1px solid ${location.pathname === "/dev" ? alpha(theme.palette.primary.main, 0.3) : "transparent"}`,
+            }}
+          >
+            <Code2 size={20} />
+          </IconButton>
+          <IconButton
+            color="inherit"
+            component={Link}
             to="/settings"
             sx={{
               backgroundColor: location.pathname === "/settings" ? alpha(theme.palette.primary.main, 0.1) : "transparent",
@@ -139,7 +165,7 @@ export function App() {
       </AppBar>
 
       <Routes>
-        <Route path="/" element={<Navigate to="/text" />} />
+        <Route path="/" element={<Navigate to="/apex" />} />
         <Route
           path="/about"
           element={
@@ -246,7 +272,7 @@ export function App() {
                 </Typography>
                 <Button
                   variant="outlined"
-                  href="/text"
+                  href="/apex"
                   sx={{
                     px: 6,
                     py: 2,
@@ -281,9 +307,12 @@ export function App() {
         <Route path="/simple/*" element={<SimpleCompetition />} />
         <Route path="/apex/*" element={<Apex />} />
         <Route path="/servergame/*" element={<ServerGame />} />
+        <Route path="/snug/*" element={<SnugPage />} />
+        <Route path="/norrisquest/*" element={<NorrisQuestPage />} />
         <Route path="/daily/*" element={<Daily />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
+        <Route path="/dev" element={<DevHub />} />
       </Routes>
     </Box>
   );

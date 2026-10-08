@@ -10,6 +10,7 @@ import {
   MAX_HOPS,
   TARGET,
   loadResult,
+  marksFor,
   saveResult,
   seedForDay,
   shareText,
@@ -162,7 +163,7 @@ export function SixDegrees() {
           px: { xs: 2, sm: 3 },
           py: 2,
           borderRadius: "18px",
-          background: alpha(theme.palette.background.paper, 0.86),
+          background: alpha(theme.palette.background.paper, 0.95),
           backdropFilter: "blur(16px)",
           border: `1px solid ${alpha(theme.palette.text.primary, 0.08)}`,
           boxShadow: `0 10px 36px ${alpha("#000", 0.22)}`,
@@ -174,13 +175,19 @@ export function SixDegrees() {
           sx={{
             mt: 1.75,
             display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
+            alignItems: "flex-start",
             justifyContent: "space-between",
             gap: 1.5,
           }}
         >
-          <Trail path={hudPath} won={hudWon} />
+          {/* The phone HUD is sticky, so the route is clipped to its tail there
+              and shown in full once there is room. */}
+          <Box sx={{ display: { xs: "none", md: "flex" }, flex: 1, minWidth: 0 }}>
+            <Trail path={hudPath} won={hudWon} lost={hudLost} />
+          </Box>
+          <Box sx={{ display: { xs: "flex", md: "none" }, flex: 1, minWidth: 0 }}>
+            <Trail path={hudPath} won={hudWon} lost={hudLost} maxItems={1} />
+          </Box>
           <HopCounter hopsLeft={MAX_HOPS - (hudPath.length - 1)} over={over || showingRecord} won={hudWon} />
         </Box>
       </Box>
@@ -286,12 +293,16 @@ function Masthead({ edition, start, glyph }: { edition: number; start: string; g
         sx={{
           mt: 1,
           fontFamily: MONO,
-          fontSize: "0.7rem",
-          letterSpacing: "0.1em",
+          fontSize: { xs: "0.6rem", sm: "0.7rem" },
+          letterSpacing: { xs: "0.04em", sm: "0.1em" },
           color: alpha(theme.palette.text.primary, 0.55),
         }}
       >
-        {glyph} {start} &nbsp;→&nbsp; 🥋 {TARGET} &nbsp;·&nbsp; {MAX_HOPS} links, no more
+        {glyph} {start} &nbsp;→&nbsp; 🥋 {TARGET}
+        <Box component="span" sx={{ display: { xs: "block", sm: "inline" } }}>
+          <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>&nbsp;·&nbsp;</Box>
+          {MAX_HOPS} links, no more
+        </Box>
       </Typography>
     </Box>
   );
@@ -538,9 +549,7 @@ function ResultPanel({
 
         {/* Score squares — the shareable bit. */}
         <Typography sx={{ mt: 2.5, fontSize: "1.4rem", letterSpacing: "0.1em", lineHeight: 1 }}>
-          {Array.from({ length: MAX_HOPS }, (_, i) =>
-            i < result.clicks ? (won ? "🟩" : "🟥") : "⬜",
-          ).join("")}
+          {marksFor(result).join("")}
         </Typography>
         <Typography
           sx={{
@@ -573,7 +582,7 @@ function ResultPanel({
 
         {/* The route, revealed only once the run is over. */}
         <Box sx={{ mt: 2.5, display: "flex", justifyContent: "center" }}>
-          <Trail path={result.path} won={won} />
+          <Trail path={result.path} won={won} lost={!won} center />
         </Box>
 
         {!won && (

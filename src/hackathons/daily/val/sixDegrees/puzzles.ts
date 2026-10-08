@@ -93,17 +93,21 @@ export function saveResult(dayIndex: number, result: Result) {
  * Share card
  * ------------------------------------------------------------------ */
 
+/** One square per hop: spent links filled, unspent ones blank. */
+export function marksFor(result: Result): string[] {
+  const won = result.outcome === "won";
+  return Array.from({ length: MAX_HOPS }, (_, i) =>
+    i < result.clicks ? (won ? "🟩" : "🟥") : "⬜",
+  );
+}
+
 /**
  * The route itself is deliberately left out: on a daily puzzle the path is the
  * spoiler. Start and target are public knowledge, so those stay in.
  */
 export function shareText(seed: Seed, result: Result): string {
   const won = result.outcome === "won";
-  const marks = Array.from({ length: MAX_HOPS }, (_, i) => {
-    if (i < result.clicks) return won ? "🟩" : "🟥";
-    return "⬜";
-  }).join("");
-
+  const marks = marksFor(result).join("");
   const score = won ? `${result.clicks}/${MAX_HOPS}` : `X/${MAX_HOPS}`;
   return [
     `SIX DEGREES #${seed.edition} — ${score}`,

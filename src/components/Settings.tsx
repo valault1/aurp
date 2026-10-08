@@ -1,4 +1,5 @@
-import { Box, Typography, Paper, Container, FormControl, Select, MenuItem, SelectChangeEvent } from "@mui/material";
+import { Link } from "react-router-dom";
+import { Box, Typography, Paper, Container, FormControl, Select, MenuItem, Button, SelectChangeEvent } from "@mui/material";
 import { useTheme } from "@/context/ThemeContext";
 import type { ThemeMode } from "@/theme";
 
@@ -64,6 +65,21 @@ export function Settings() {
 
                     </Box>
                 </Box>
+            </Paper>
+
+            <Paper
+                elevation={0}
+                sx={{ p: 4, mt: 3, borderRadius: 3, border: "1px solid", borderColor: "divider" }}
+            >
+                <Typography variant="h6" fontWeight={700} mb={1}>
+                    Developer
+                </Typography>
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                    Hackathon experiments still in development.
+                </Typography>
+                <Button variant="outlined" component={Link} to="/dev">
+                    Dev projects
+                </Button>
             </Paper>
         </Container>
     );

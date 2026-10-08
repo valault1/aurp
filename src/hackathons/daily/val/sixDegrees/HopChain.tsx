@@ -154,19 +154,57 @@ function Cap({
  * (and it is half the fun of sharing), so it is always visible rather than
  * hidden behind the pip tooltips.
  */
-export function Trail({ path, won }: { path: string[]; won: boolean }) {
+export function Trail({
+  path,
+  won,
+  lost,
+  center,
+  maxItems,
+}: {
+  path: string[];
+  won: boolean;
+  lost?: boolean;
+  /** Centred under the verdict; left-aligned in the HUD. */
+  center?: boolean;
+  /** Show only the last N steps, behind a "…". Keeps the phone HUD short. */
+  maxItems?: number;
+}) {
   const theme = useTheme();
-  const { signal, signalSoft, win } = accentsFor(theme);
+  const { signal, signalSoft, win, danger } = accentsFor(theme);
+  // The head of the trail carries the run's state: amber mid-run, green on a
+  // win, red once the hops are gone.
+  const head = won ? win : lost ? danger : signal;
+
+  const truncated = maxItems != null && path.length > maxItems;
+  const steps = truncated ? path.slice(-maxItems) : path;
 
   return (
-    <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 0.75 }}>
-      {path.map((title, i) => {
-        const isLast = i === path.length - 1;
+    <Box
+      sx={{
+        flex: 1,
+        minWidth: 0,
+        display: "flex",
+        flexWrap: "wrap",
+        alignItems: "center",
+        justifyContent: center ? "center" : "flex-start",
+        gap: 0.75,
+      }}
+    >
+      {truncated && (
+        <Typography
+          component="span"
+          sx={{ fontFamily: MONO, fontSize: "0.7rem", color: alpha(theme.palette.text.primary, 0.3) }}
+        >
+          …
+        </Typography>
+      )}
+      {steps.map((title, i) => {
+        const isLast = i === steps.length - 1;
         const isTarget = isLast && won;
-        const color = isTarget ? win : isLast ? signalSoft : alpha(theme.palette.text.primary, 0.45);
+        const color = isTarget ? win : isLast ? (lost ? danger : signalSoft) : alpha(theme.palette.text.primary, 0.45);
         return (
           <Box key={`${title}-${i}`} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-            {i > 0 && (
+            {(i > 0 || truncated) && (
               <Typography component="span" sx={{ fontFamily: MONO, fontSize: "0.7rem", color: alpha(theme.palette.text.primary, 0.25) }}>
                 ›
               </Typography>
@@ -184,8 +222,8 @@ export function Trail({ path, won }: { path: string[]; won: boolean }) {
                 px: 1,
                 py: 0.35,
                 borderRadius: "6px",
-                background: isLast ? alpha(isTarget ? win : signal, 0.12) : "transparent",
-                border: `1px solid ${isLast ? alpha(isTarget ? win : signal, 0.35) : "transparent"}`,
+                background: isLast ? alpha(head, 0.12) : "transparent",
+                border: `1px solid ${isLast ? alpha(head, 0.35) : "transparent"}`,
                 fontWeight: isLast ? 700 : 400,
                 maxWidth: 220,
                 overflow: "hidden",
