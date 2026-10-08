@@ -12,6 +12,7 @@ import { VolumeInput } from "@/hackathons/volumeInput/VolumeInput";
 import { SimpleCompetition } from "@/hackathons/simpleCompetition/SimpleCompetition";
 import { Apex } from "@/hackathons/apex/Apex";
 import { ServerGame } from "@/hackathons/serverGame/ServerGame";
+import { Daily } from "@/hackathons/daily/Daily";
 import { motion } from "framer-motion";
 
 export function App() {
@@ -30,6 +31,7 @@ export function App() {
     { label: "Simple", path: "/simple" },
     { label: "Apex", path: "/apex" },
     { label: "Server Game", path: "/servergame" },
+    { label: "Daily", path: "/daily" },
   ];
 
   return (
@@ -279,6 +281,7 @@ export function App() {
         <Route path="/simple/*" element={<SimpleCompetition />} />
         <Route path="/apex/*" element={<Apex />} />
         <Route path="/servergame/*" element={<ServerGame />} />
+        <Route path="/daily/*" element={<Daily />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
