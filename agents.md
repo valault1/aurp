@@ -28,6 +28,11 @@
 ## Prod vs Dev
 - Top nav shows only prod projects (Apex, Snug, NorrisQuest; the last two are Daily v1/v3 wrapped in `src/hackathons/daily/ProdGames.tsx`). Dev hackathons are tiled at `/dev` (`src/components/DevHub.tsx`, `DEV_HACKATHONS`), linked from Settings. New hackathons: add to `DEV_HACKATHONS`, not the top nav; promote by moving to `navItems` in `App.tsx`.
 
+## Link previews (Open Graph)
+- Unfurlers don't run JS, so per-path previews are prerendered: `bun run build` runs `scripts/og/prerender.ts`, which copies `dist/index.html` to `dist/<route>/index.html` with swapped OG tags (asset refs rewritten `./` → `/`) and copies `src/og/*.png` to `dist/og/`. Firebase serves those ahead of the `**` rewrite (`trailingSlash: false`).
+- Cards live in `PREVIEWS` in that script. Images are rendered from `scripts/og/*.html` by `bun run og:images` (headless Chrome, 1200×630) into `src/og/`, which is committed — add a template + a `PREVIEWS` entry for a new route.
+- `/` keeps its own square `src/og-image.png`. iMessage caches previews hard; a `?v=2` on the URL forces a refetch.
+
 ## Creating New Hackathons
 When tasked with creating a new hackathon project:
 1. **Directory Structure**: Create a new camelCase folder under `src/hackathons/`.

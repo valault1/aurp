@@ -4,8 +4,20 @@
     {
       "name": "aurp-dev",
       "runtimeExecutable": "bash",
-      "runtimeArgs": ["-c", "PORT=3001 bun --hot src/index.ts"],
+      "runtimeArgs": [
+        "-c",
+        "PORT=3001 bun --hot src/index.ts"
+      ],
       "port": 3001
+    },
+    {
+      "name": "aurp-dev-3011",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": [
+        "-c",
+        "PORT=3011 bun --hot src/index.ts"
+      ],
+      "port": 3011
     }
   ]
 }

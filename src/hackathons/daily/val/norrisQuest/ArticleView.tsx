@@ -1,6 +1,6 @@
 import { useRef } from "react";
-import { Box, useTheme } from "@mui/material";
-import { articleSx } from "./tokens";
+import { Box } from "@mui/material";
+import { ARTICLE_SX } from "./tokens";
 
 type Props = {
   html: string;
@@ -16,7 +16,6 @@ type Props = {
  * 800 links still costs exactly one listener.
  */
 export function ArticleView({ html, onNavigate, locked }: Props) {
-  const theme = useTheme();
   const ref = useRef<HTMLDivElement | null>(null);
 
   const pick = (target: EventTarget | null) => {
@@ -41,7 +40,7 @@ export function ArticleView({ html, onNavigate, locked }: Props) {
         e.preventDefault();
         pick(e.target);
       }}
-      sx={articleSx(theme)}
+      sx={ARTICLE_SX}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   );
