@@ -100,7 +100,7 @@ export function saveResult(dayIndex: number, result: Result) {
 export function shareText(seed: Seed, result: Result): string {
   const won = result.outcome === "won";
   const marks = Array.from({ length: MAX_HOPS }, (_, i) => {
-    if (i < result.clicks) return won ? "🟧" : "🟥";
+    if (i < result.clicks) return won ? "🟩" : "🟥";
     return "⬜";
   }).join("");
 

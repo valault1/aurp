@@ -1,7 +1,7 @@
 import { Box, Tooltip, Typography, alpha, useTheme } from "@mui/material";
 import { motion } from "framer-motion";
 import { MAX_HOPS } from "./puzzles";
-import { MONO, SIGNAL, accentsFor } from "./tokens";
+import { MONO, accentsFor } from "./tokens";
 
 type Props = {
   /** Visited route, including the starting article. */

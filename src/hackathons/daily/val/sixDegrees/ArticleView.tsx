@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Box, useTheme } from "@mui/material";
 import { articleSx } from "./tokens";
 
@@ -18,11 +18,6 @@ type Props = {
 export function ArticleView({ html, onNavigate, locked }: Props) {
   const theme = useTheme();
   const ref = useRef<HTMLDivElement | null>(null);
-
-  // Every new article starts at the top of its own scroll box.
-  useEffect(() => {
-    ref.current?.parentElement?.scrollTo({ top: 0 });
-  }, [html]);
 
   const pick = (target: EventTarget | null) => {
     if (locked) return;

@@ -17,12 +17,16 @@ import {
   type Result,
 } from "./puzzles";
 import { fetchArticle, titleKey, wikiUrl, type Article } from "./wiki";
-import { DANGER, DOSSIER_GRID, MONO, SIGNAL, SIGNAL_SOFT, WIN } from "./tokens";
+import { DOSSIER_GRID, MONO, SIGNAL, accentsFor } from "./tokens";
 
 type Phase = "playing" | "won" | "lost";
 
+/** Sticky-HUD height, so a freshly loaded article is not hidden behind it. */
+const HUD_CLEARANCE = 120;
+
 export function SixDegrees() {
   const theme = useTheme();
+  const { signal } = accentsFor(theme);
   const dayIndex = useMemo(() => todayIndex(), []);
   const seed = useMemo(() => seedForDay(dayIndex), [dayIndex]);
 
@@ -43,7 +47,34 @@ export function SixDegrees() {
   // Only surface the saved result until the player opts into a replay.
   const showingRecord = recorded !== null && !unscored && phase === "playing";
 
+  // When we are showing a day that is already in the books, the HUD should
+  // replay that run's route rather than sitting at a pristine six-hops-left.
+  const hudPath = showingRecord ? recorded!.path : path;
+  const hudWon = showingRecord ? recorded!.outcome === "won" : phase === "won";
+  const hudLost = showingRecord ? recorded!.outcome === "lost" : phase === "lost";
+
   const abort = useRef<AbortController | null>(null);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  /** Mirrors `path` so `go` can read the route without re-creating itself. */
+  const pathRef = useRef<string[]>([seed.start]);
+
+  /**
+   * A new article arrives below wherever the player happened to be reading, so
+   * the view has to be pulled back to the top of the board — far enough down
+   * that the sticky HUD does not cover the article title.
+   */
+  const scrollTo = (where: "board" | "top") => {
+    requestAnimationFrame(() => {
+      if (where === "top") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        return;
+      }
+      const el = boardRef.current;
+      if (!el) return;
+      const y = el.getBoundingClientRect().top + window.scrollY - HUD_CLEARANCE;
+      window.scrollTo({ top: Math.max(0, y), behavior: "smooth" });
+    });
+  };
 
   /** Loads an article; `hop` means it cost the player a link click. */
   const go = useCallback(
@@ -61,30 +92,31 @@ export function SixDegrees() {
         setArticle(next);
 
         if (!hop) {
+          pathRef.current = [next.title];
           setPath([next.title]);
           setPhase("playing");
           return;
         }
 
+        const route = [...pathRef.current, next.title];
+        const used = route.length - 1;
         const reached = titleKey(next.title) === titleKey(TARGET);
-        setPath((prev) => {
-          const route = [...prev, next.title];
-          const used = route.length - 1;
-          const outcome: Phase = reached ? "won" : used >= MAX_HOPS ? "lost" : "playing";
-          setPhase(outcome);
+        const outcome: Phase = reached ? "won" : used >= MAX_HOPS ? "lost" : "playing";
 
-          // First finished run of the day is the one that counts.
-          if (outcome !== "playing" && !unscored && !recorded) {
-            const result: Result = {
-              outcome: outcome === "won" ? "won" : "lost",
-              clicks: used,
-              path: route,
-            };
-            saveResult(dayIndex, result);
-            setRecorded(result);
-          }
-          return route;
-        });
+        pathRef.current = route;
+        setPath(route);
+        setPhase(outcome);
+
+        // First finished run of the day is the one that counts.
+        if (outcome !== "playing" && !unscored && !recorded) {
+          const result: Result = { outcome: outcome === "won" ? "won" : "lost", clicks: used, path: route };
+          saveResult(dayIndex, result);
+          setRecorded(result);
+        }
+
+        // A finished run puts the verdict on screen; an unfinished one puts the
+        // new article's opening paragraph there.
+        scrollTo(outcome === "playing" ? "board" : "top");
       } catch (e) {
         if (controller.signal.aborted) return;
         // A failed fetch must not cost a hop — the player never got to read it.
@@ -105,9 +137,11 @@ export function SixDegrees() {
 
   const replay = () => {
     setUnscored(true);
+    pathRef.current = [seed.start];
     setPath([seed.start]);
     setPhase("playing");
     void go(seed.start, false);
+    scrollTo("top");
   };
 
   const shown = showingRecord ? recorded : phase === "won" || phase === "lost" ? { outcome: phase === "won" ? "won" : "lost", clicks, path } as Result : null;
@@ -134,7 +168,7 @@ export function SixDegrees() {
           boxShadow: `0 10px 36px ${alpha("#000", 0.22)}`,
         }}
       >
-        <HopChain path={path} glyph={seed.glyph} won={phase === "won"} lost={phase === "lost"} />
+        <HopChain path={hudPath} glyph={seed.glyph} won={hudWon} lost={hudLost} />
 
         <Box
           sx={{
@@ -146,8 +180,8 @@ export function SixDegrees() {
             gap: 1.5,
           }}
         >
-          <Trail path={path} won={phase === "won"} />
-          <HopCounter hopsLeft={hopsLeft} over={over} won={phase === "won"} />
+          <Trail path={hudPath} won={hudWon} />
+          <HopCounter hopsLeft={MAX_HOPS - (hudPath.length - 1)} over={over || showingRecord} won={hudWon} />
         </Box>
       </Box>
 
@@ -168,6 +202,7 @@ export function SixDegrees() {
 
       {/* Board */}
       <Box
+        ref={boardRef}
         sx={{
           mt: 2.5,
           borderRadius: "20px",
@@ -219,6 +254,7 @@ export function SixDegrees() {
 
 function Masthead({ edition, start, glyph }: { edition: number; start: string; glyph: string }) {
   const theme = useTheme();
+  const { signal } = accentsFor(theme);
   return (
     <Box sx={{ textAlign: "center", pt: 1 }}>
       <Typography
@@ -240,8 +276,8 @@ function Masthead({ edition, start, glyph }: { edition: number; start: string; g
           fontSize: { xs: "1.75rem", sm: "2.4rem" },
           letterSpacing: { xs: "0.14em", sm: "0.22em" },
           textTransform: "uppercase",
-          color: SIGNAL,
-          textShadow: `0 0 26px ${alpha(SIGNAL, 0.45)}`,
+          color: signal,
+          textShadow: `0 0 26px ${alpha(SIGNAL, 0.35)}`,
         }}
       >
         Six Degrees
@@ -263,8 +299,9 @@ function Masthead({ edition, start, glyph }: { edition: number; start: string; g
 
 function HopCounter({ hopsLeft, over, won }: { hopsLeft: number; over: boolean; won: boolean }) {
   const theme = useTheme();
+  const { win, danger } = accentsFor(theme);
   const critical = !won && hopsLeft <= 1;
-  const color = won ? WIN : over || critical ? DANGER : alpha(theme.palette.text.primary, 0.55);
+  const color = won ? win : over || critical ? danger : alpha(theme.palette.text.primary, 0.55);
 
   return (
     <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, flexShrink: 0 }}>
@@ -288,6 +325,7 @@ function HopCounter({ hopsLeft, over, won }: { hopsLeft: number; over: boolean; 
 
 function ArticleHeader({ title, loading }: { title: string; loading: boolean }) {
   const theme = useTheme();
+  const { signal } = accentsFor(theme);
   return (
     <Box
       sx={{
@@ -330,7 +368,7 @@ function ArticleHeader({ title, loading }: { title: string; loading: boolean }) 
           sx={{
             display: "inline-flex",
             color: alpha(theme.palette.text.primary, 0.3),
-            "&:hover": { color: SIGNAL },
+            "&:hover": { color: signal },
             transition: "color .2s ease",
           }}
         >
@@ -371,9 +409,10 @@ function Tracing() {
 
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   const theme = useTheme();
+  const { signal, danger } = accentsFor(theme);
   return (
     <Box sx={{ p: { xs: 4, sm: 6 }, textAlign: "center" }}>
-      <TriangleAlert size={28} color={DANGER} />
+      <TriangleAlert size={28} color={danger} />
       <Typography sx={{ mt: 2, fontFamily: MONO, fontSize: "0.8rem", color: theme.palette.text.primary }}>
         Signal lost
       </Typography>
@@ -395,8 +434,8 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
           fontWeight: 800,
           letterSpacing: "0.16em",
           textTransform: "uppercase",
-          color: SIGNAL,
-          border: `1px solid ${alpha(SIGNAL, 0.4)}`,
+          color: signal,
+          border: `1px solid ${alpha(signal, 0.4)}`,
         }}
       >
         Retry
@@ -427,9 +466,10 @@ function ResultPanel({
   onReplay: () => void;
 }) {
   const theme = useTheme();
+  const { signal, signalSoft, win, danger } = accentsFor(theme);
   const [copied, setCopied] = useState(false);
   const won = result.outcome === "won";
-  const accent = won ? WIN : DANGER;
+  const accent = won ? win : danger;
   const text = shareText({ edition, start, glyph }, result);
 
   const copy = async () => {
@@ -499,7 +539,7 @@ function ResultPanel({
         {/* Score squares — the shareable bit. */}
         <Typography sx={{ mt: 2.5, fontSize: "1.4rem", letterSpacing: "0.1em", lineHeight: 1 }}>
           {Array.from({ length: MAX_HOPS }, (_, i) =>
-            i < result.clicks ? (won ? "🟧" : "🟥") : "⬜",
+            i < result.clicks ? (won ? "🟩" : "🟥") : "⬜",
           ).join("")}
         </Typography>
         <Typography
@@ -559,9 +599,9 @@ function ResultPanel({
                     px: 1.25,
                     py: 0.5,
                     borderRadius: "999px",
-                    color: SIGNAL_SOFT,
-                    background: alpha(SIGNAL, 0.1),
-                    border: `1px solid ${alpha(SIGNAL, 0.28)}`,
+                    color: signalSoft,
+                    background: alpha(signal, 0.1),
+                    border: `1px solid ${alpha(signal, 0.28)}`,
                   }}
                 >
                   {hub}
