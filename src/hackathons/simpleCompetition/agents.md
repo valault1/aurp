@@ -199,7 +199,7 @@ iterations v1–v3). We only use v1 for now (ignore v2/v3 placeholders).
 ### Controls
 ←/→ steer (or pick circuit on the start screen) · ↑ gas · ↓ brake · `.`/E up-shift ·
 `,`/Q down-shift · 1–6 direct gear · Enter start/restart · Esc circuit select ·
-backtick tuning panel · M mute.
+backtick tuning panel · M mute · F fullscreen (the `.road-wrap` goes fullscreen; canvases refit on the resize event, any aspect ratio works).
 
 ### Not built yet (deliberately deferred)
 - Screen-only Playwright bot to beat the lap (that's a *later week* — not for the first

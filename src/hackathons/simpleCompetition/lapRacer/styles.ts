@@ -26,6 +26,11 @@ export const CSS = `
 .road-wrap { position:relative; width:100%; aspect-ratio:16/9; border-radius:12px; overflow:hidden;
   border:1px solid #20262e; background:#0a0c0f; margin-top:12px; }
 .road { position:absolute; inset:0; width:100%; height:100%; display:block; }
+.road-wrap:fullscreen { aspect-ratio:auto; width:100vw; height:100vh; margin:0; border:0; border-radius:0; }
+.road-wrap::backdrop { background:#000; }
+.fs-exit { display:none; position:absolute; right:12px; bottom:12px; z-index:8; opacity:.75; }
+.fs-exit:hover { opacity:1; }
+.road-wrap:fullscreen .fs-exit { display:block; }
 .crt { position:absolute; inset:0; pointer-events:none; z-index:1; opacity:.45;
   background:repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px),
              radial-gradient(ellipse at center, transparent 62%, rgba(4,2,12,.36) 100%); }

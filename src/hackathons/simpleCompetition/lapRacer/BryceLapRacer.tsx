@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { clamp, lerp, fmtTime, type Col } from "./util";
 import { TUNING, TUNING_DEFAULTS, KNOBS, CAR } from "./tuning";
 import { TRACKS, tracePath, type Segment } from "./tracks";
@@ -27,6 +27,30 @@ export function BryceLapRacer() {
   const roadRef = useRef<HTMLCanvasElement>(null);
   const tachRef = useRef<HTMLCanvasElement>(null);
   const mapRef = useRef<HTMLCanvasElement>(null);
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [fullscreen, setFullscreen] = useState(false);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void wrapRef.current?.requestFullscreen({ navigationUI: "hide" });
+  }, []);
+
+  // The race view goes fullscreen on its own; F toggles it. The canvases refit on the resize event.
+  useEffect(() => {
+    const onChange = () => {
+      setFullscreen(document.fullscreenElement === wrapRef.current);
+      window.dispatchEvent(new Event("resize"));
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === "f" && !e.metaKey && !e.ctrlKey && !e.altKey && !e.repeat) toggleFullscreen();
+    };
+    document.addEventListener("fullscreenchange", onChange);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("fullscreenchange", onChange);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [toggleFullscreen]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -1253,10 +1277,16 @@ export function BryceLapRacer() {
             <h1>APEX<span className="dot">·</span></h1>
             <span className="tag">beat the pack · beat the clock</span>
           </div>
+          <button className="sound-btn" type="button" onClick={toggleFullscreen}>
+            {fullscreen ? "Exit fullscreen" : "Fullscreen"}
+          </button>
           <button className="sound-btn on" data-el="soundBtn" type="button">Sound: On</button>
         </div>
 
-        <div className="road-wrap">
+        <div className="road-wrap" ref={wrapRef}>
+          <button className="sound-btn fs-exit" type="button" onClick={toggleFullscreen}>
+            Exit fullscreen (F)
+          </button>
           <canvas className="road" ref={roadRef} />
           <div className="crt" />
 
@@ -1353,6 +1383,7 @@ export function BryceLapRacer() {
           <span><b>Enter</b> restart</span>
           <span><b>Esc</b> circuits</span>
           <span><b>M</b> mute</span>
+          <span><b>F</b> fullscreen</span>
         </div>
       </div>
     </div>
