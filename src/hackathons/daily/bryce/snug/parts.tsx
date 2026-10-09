@@ -221,6 +221,7 @@ export function ResultCard(props: {
   describe: (r: { gaps: number; timeMs: number }) => string;
   onCopy: () => void;
   onReveal: () => void;
+  onShowMine: () => void;
   onPlayAgain: () => void;
   onClose: () => void;
   /** Card center in the play area, in px; defaults to the middle. */
@@ -250,6 +251,7 @@ export function ResultCard(props: {
       }}
     >
       <StitchBorder inset={10} radius={13} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed="result-card" />
+      <CloseButton onClick={props.onClose} />
       <div style={{ fontFamily: SCRIPT, fontSize: sheet ? 36 : 46, lineHeight: 1, color: perfect ? "#2e8f83" : BINDING, fontWeight: 700 }}>
         {perfect ? "Perfectly snug!" : `${plural(result.gaps, "hole")} left`}
       </div>
@@ -274,7 +276,7 @@ export function ResultCard(props: {
             Show a perfect fill
           </Btn>
         )}
-        <Btn small={sheet} onClick={props.onClose}>
+        <Btn small={sheet} onClick={props.onShowMine}>
           Look at my quilt
         </Btn>
         <Btn small={sheet} primary onClick={props.onPlayAgain}>
@@ -292,8 +294,11 @@ export function QuiltBackdrop({ dateKey }: { dateKey: string }) {
   return (
     <GlobalStyles
       styles={{
+        html: { overscrollBehavior: "none" },
         body: {
           background: `radial-gradient(ellipse at 50% 40%, rgba(45,25,15,0) 35%, rgba(45,25,15,.55) 100%) fixed, ${quilt} repeat fixed #8a6a55 !important`,
+          // No rubber-band bounce or pull-to-refresh while playing; those dragged the whole page under a finger.
+          overscrollBehavior: "none",
         },
         "#root > div": { backgroundColor: "transparent !important" },
         "@keyframes snugShimmer": { "0%, 100%": { opacity: 1, filter: "brightness(1)" }, "50%": { opacity: 0.85, filter: "brightness(1.35)" } },
@@ -409,7 +414,61 @@ function Step({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-const SQUARE: Cell[] = [[0, 0], [1, 0], [0, 1], [1, 1]];
+const MINI_BOARD: Cell[] = [[0, 0], [1, 0], [2, 0], [0, 1], [1, 1], [2, 1]];
+const MINI_CELL = 16;
+
+/** A tiny 3 by 2 quilt with patches placed in board cells, optionally showing holes or a perfect fill. */
+function MiniQuilt({ pieces, holes = [], perfect = false }: { pieces: { cells: Cell[]; color: number }[]; holes?: Cell[]; perfect?: boolean }) {
+  const pad = 0.45 * MINI_CELL;
+  return (
+    <div style={{ position: "relative" }}>
+      <BoardSvg board={MINI_BOARD} cols={3} rows={2} cell={MINI_CELL} pad={0.45} holes={holes} perfect={perfect} />
+      {pieces.map((pc, i) => {
+        const x = Math.min(...pc.cells.map((c) => c[0]));
+        const y = Math.min(...pc.cells.map((c) => c[1]));
+        const cells = pc.cells.map(([cx, cy]) => [cx - x, cy - y] as Cell);
+        return (
+          <div key={i} style={{ position: "absolute", left: pad + x * MINI_CELL, top: pad + y * MINI_CELL }}>
+            <PatchSvg piece={{ id: `mini-${perfect ? "full" : "gap"}-${i}`, cells, color: pc.color, at: null }} cell={MINI_CELL} interactive={false} onDown={() => {}} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** A round stitched X in a card's top-right corner; it sits outside the scrolling content so it is always visible. */
+function CloseButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      aria-label="Close"
+      title="Close"
+      onClick={onClick}
+      style={{
+        position: "absolute",
+        top: 18,
+        right: 18,
+        zIndex: 2,
+        width: 34,
+        height: 34,
+        borderRadius: 999,
+        border: "none",
+        background: LINEN,
+        boxShadow: "0 2px 6px rgba(60,30,15,.25)",
+        color: INK,
+        cursor: "pointer",
+        display: "grid",
+        placeItems: "center",
+      }}
+    >
+      <StitchBorder inset={3.5} radius={14} color={RUST_THREAD} width={1.3} stitch={3.5} gap={2.6} seed="close" />
+      <svg width={14} height={14} viewBox="0 0 14 14" aria-hidden>
+        <path d="M2 2L12 12M12 2L2 12" stroke={INK} strokeWidth={2.2} strokeLinecap="round" />
+      </svg>
+    </button>
+  );
+}
 
 /** The rules, shown as a stitched card over a dimmed page. */
 export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; touch: boolean; spares: number }) {
@@ -448,6 +507,7 @@ export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; tou
         }}
       >
         <StitchBorder inset={10} radius={13} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed="how-to-play" />
+        <CloseButton onClick={onClose} />
         {/* Text scrolls inside the stitched edge so the seam stays put. */}
         <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px 6px" }}>
         <div style={{ fontFamily: SCRIPT, fontSize: 44, lineHeight: 1, color: BINDING, fontWeight: 700, textAlign: "center" }}>How to play</div>
@@ -463,12 +523,21 @@ export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; tou
             <MiniPatch shape="L4" color={1} turned={1} />
           </Step>
           <Step title="Leave no holes">
-            <div style={{ position: "relative" }}>
-              <BoardSvg board={SQUARE} cols={2} rows={2} cell={18} pad={0.45} perfect />
-              <div style={{ position: "absolute", left: 0.45 * 18, top: 0.45 * 18 }}>
-                <PatchSvg piece={{ id: "howto-fill", cells: SQUARE, color: 3, at: null }} cell={18} interactive={false} onDown={() => {}} />
-              </div>
-            </div>
+            <MiniQuilt
+              pieces={[
+                { cells: [[0, 0], [1, 0], [0, 1]], color: 3 },
+                { cells: [[2, 0], [2, 1]], color: 8 },
+              ]}
+              holes={[[1, 1]]}
+            />
+            <Arrow />
+            <MiniQuilt
+              pieces={[
+                { cells: [[0, 0], [1, 0], [0, 1]], color: 3 },
+                { cells: [[2, 0], [2, 1], [1, 1]], color: 0 },
+              ]}
+              perfect
+            />
           </Step>
         </div>
         {section("Fill the quilt", "Every square of today's quilt can be filled exactly with patches from the basket.")}

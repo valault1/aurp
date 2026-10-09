@@ -15,8 +15,14 @@ Daily piece-fitting puzzle with a yarn and patchwork look. Rendered by `BryceDai
 - **Header / help**: phones (<560px play width) use a two-row header (title + "?" + stats, then date arrows; past days add a "»" back-to-today arrow). Rules live in the `HowToPlay` modal (auto-opens once, `snug.howToSeen`). Phone result card is a fixed bottom sheet.
 - **Layout**: side-by-side is preferred whenever cells stay >= 30px; otherwise stacked (board on top). Basket slots are packed in rows, sized by each piece's longest side so turning never reflows. Fits width and `innerHeight` minus the header. Touch drags float the piece `1.2` cells above the finger (`Drag.lift`).
 
+- **Clock**: starts on the first placement and counts active time only (`clock` ref: `base` + running `since`). Today's scored game saves `snug.progress.<date>` (pieces, elapsed, started) on every change, on tab hide, on page hide, and on unmount; returning restores it under a "Paused" cover until Resume, so leaving cannot reset or pause the clock unseen. Replays and past quilts just pause while hidden. Progress for other days is pruned on load; finishing clears it.
+
+- **After finishing**: the result card (with a close X) offers "Show a perfect fill" and "Look at my quilt"; the footer toggles between the two views. "My quilt" is `finalPieces`: the recorded first run when returning, or this session's latest replay (replays are never persisted).
+
 ## Gotchas
 - `QuiltBackdrop` makes `#root > div` transparent via GlobalStyles while mounted; that is what lets the quilt show behind the whole app.
 - MUI ToggleButton ignores sx selected-state overrides under this theme; the view toggle uses `Btn` instead.
 - Changing the generator changes every day's puzzle, which breaks already-saved attempts for those dates.
 - Chrome ignores `touch-action` on inner SVG shapes; it must be on the piece's outer `<svg>` or touch drags get a `pointercancel` and scroll the page.
+- Phones: the whole play area is `touch-action: none` plus a non-passive `touchmove` preventDefault, and the page has `overscroll-behavior: none`, so missed touches never scroll. Basket slots have invisible hit areas (z 4, under the pieces) that grab the nearest square.
+- On touch screens, height-only resizes (address bar showing/hiding) are ignored; re-laying out mid-scroll resized the game and left stale stitch borders on iOS.

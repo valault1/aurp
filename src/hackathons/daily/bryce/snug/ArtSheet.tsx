@@ -154,6 +154,7 @@ export function SnugArtSheet() {
                 describe={() => ""}
                 onCopy={() => {}}
                 onReveal={() => {}}
+                onShowMine={() => {}}
                 onPlayAgain={() => {}}
                 onClose={() => {}}
               />

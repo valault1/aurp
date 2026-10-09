@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as
 import { addDays, formatDuration, formatLongDate, formatShortDate, loadAttempt, puzzleNumber, saveAttempt, todayKey } from "../daily";
 import { DECOY_COUNT, generatePuzzle } from "./generator";
 import { bounds, cellKey, rotateCW, shapeKey, type Cell } from "./pieces";
-import { BINDING, YARNS } from "./quilt";
+import { BINDING, LINEN, YARNS } from "./quilt";
 import { StitchBorder } from "./stitches";
 import { BoardSvg, Btn, FONT, HowToPlay, INK, KnitDefs, PanelStitches, PatchSvg, QuiltBackdrop, RUST_THREAD, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, plural, type Attempt, type PieceState, type Spot } from "./parts";
 
@@ -58,6 +58,33 @@ function packTray(sizes: number[], widthCells: number): { slots: Slot[]; w: numb
   return { slots, w: maxW, h: y };
 }
 
+/** Today's unfinished scored game, saved as it goes so leaving and returning cannot reset the clock. */
+interface Progress {
+  pieces: PieceState[];
+  elapsedMs: number;
+  started: boolean;
+}
+
+const progressKey = (dateKey: string) => `${GAME}.progress.${dateKey}`;
+
+function loadProgress(dateKey: string): Progress | null {
+  try {
+    const raw = localStorage.getItem(progressKey(dateKey));
+    return raw ? (JSON.parse(raw) as Progress) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveProgress(dateKey: string, progress: Progress | null) {
+  try {
+    if (progress) localStorage.setItem(progressKey(dateKey), JSON.stringify(progress));
+    else localStorage.removeItem(progressKey(dateKey));
+  } catch {
+    // Storage can be blocked; progress then only lasts while the page is open.
+  }
+}
+
 interface Drag {
   id: string;
   /** Index of the held cell, which stays under the pointer through rotations. */
@@ -78,6 +105,14 @@ const shift = (cells: readonly Cell[], s: Spot) => cells.map(([x, y]) => [x + s.
 
 export function Snug() {
   const today = useMemo(todayKey, []);
+  // Unfinished games from earlier days can never be scored, so their saved progress is dropped.
+  useEffect(() => {
+    try {
+      for (const k of Object.keys(localStorage)) if (k.startsWith(`${GAME}.progress.`) && k !== progressKey(today)) localStorage.removeItem(k);
+    } catch {
+      // Storage can be blocked; nothing to clean up then.
+    }
+  }, [today]);
   const [dateKey, setDateKey] = useState(today);
   return <SnugDay key={dateKey} dateKey={dateKey} today={today} onPickDate={setDateKey} />;
 }
@@ -89,18 +124,22 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   const number = puzzleNumber(dateKey, LAUNCH_DATE);
   const boardSet = useMemo(() => new Set(puzzle.board.map(([x, y]) => cellKey(x, y))), [puzzle]);
   const initial = useMemo(() => (isArchive ? null : loadAttempt<Attempt>(GAME, dateKey)), [dateKey, isArchive]);
+  // Only today's first attempt is scored; it alone is saved as it goes and covered while paused.
+  const progress = useMemo(() => (isArchive || initial ? null : loadProgress(dateKey)), [dateKey, isArchive, initial]);
   const freshPieces = useCallback(
     (): PieceState[] => puzzle.pieces.map((p) => ({ id: p.id, cells: p.cells, color: p.color, at: null })),
     [puzzle],
   );
 
   const [recorded, setRecorded] = useState<Attempt | null>(initial);
-  const [pieces, setPieces] = useState<PieceState[]>(() => initial?.pieces ?? freshPieces());
+  const [pieces, setPieces] = useState<PieceState[]>(() => initial?.pieces ?? progress?.pieces ?? freshPieces());
   const [phase, setPhase] = useState<"playing" | "done">(initial ? "done" : "playing");
   const [result, setResult] = useState<{ gaps: number; timeMs: number } | null>(initial);
   const [isReplay, setIsReplay] = useState(false);
   const [showCard, setShowCard] = useState(!!initial);
   const [revealing, setRevealing] = useState(false);
+  // The quilt you finished with: the recorded run when returning later, or this session's latest replay.
+  const [finalPieces, setFinalPieces] = useState<PieceState[] | null>(initial?.pieces ?? null);
   const [confirming, setConfirming] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -120,14 +159,17 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       // Private browsing can block storage; the guide just shows again next time.
     }
   }, []);
-  const [now, setNow] = useState(() => Date.now());
+  // Ticks the visible clock; the value itself is read from `clock`.
+  const [, setNow] = useState(() => Date.now());
   const [width, setWidth] = useState(0);
   const [viewH, setViewH] = useState(() => window.innerHeight);
   const coarsePointer = useMemo(() => window.matchMedia("(pointer: coarse)").matches, []);
   const [headerH, setHeaderH] = useState(200);
   const dragRef = useRef<Drag | null>(null);
   const lastGrab = useRef(0);
-  const startRef = useRef<number | null>(null);
+  // Active time only: `base` is time already played, `since` marks when the current running stretch began.
+  const clock = useRef({ base: progress?.elapsedMs ?? 0, since: null as number | null, started: progress?.started ?? false });
+  const [paused, setPaused] = useState(!!progress?.started);
   const playRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -143,7 +185,12 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     ro.observe(el);
     // The header grows when fonts load or "How to play" opens, which moves the play area down.
     if (topRef.current) ro.observe(topRef.current);
+    let lastWidth = window.innerWidth;
     const onResize = () => {
+      // Phone browsers change the height as the address bar hides and shows while scrolling; re-laying out then
+      // resizes the game mid-drag. On touch screens only a width change (rotation) re-lays out.
+      if (coarsePointer && window.innerWidth === lastWidth) return;
+      lastWidth = window.innerWidth;
       setViewH(window.innerHeight);
       setHeaderH(el.offsetTop);
     };
@@ -152,6 +199,15 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       ro.disconnect();
       window.removeEventListener("resize", onResize);
     };
+  }, []);
+
+  // Touches that start anywhere in the play area never scroll the page, even when they miss a piece.
+  useEffect(() => {
+    const el = playRef.current;
+    if (!el) return;
+    const stop = (e: TouchEvent) => e.preventDefault();
+    el.addEventListener("touchmove", stop, { passive: false });
+    return () => el.removeEventListener("touchmove", stop);
   }, []);
 
   // Each piece's basket slot is sized by its longest side, so turning a piece never reflows the basket.
@@ -314,6 +370,25 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     setConfirming(false);
   };
 
+  /** A press anywhere in a basket slot picks up that slot's piece by its nearest square. */
+  const onSlotDown = (e: ReactPointerEvent, p: PieceState, index: number) => {
+    const { px, py } = pointerIn(e);
+    const pos = piecePos(p, index);
+    const size = layout.cell * pos.s;
+    const lx = (px - pos.x) / size;
+    const ly = (py - pos.y) / size;
+    let grab = 0;
+    let best = Infinity;
+    p.cells.forEach(([cx, cy], i) => {
+      const d = (cx + 0.5 - lx) ** 2 + (cy + 0.5 - ly) ** 2;
+      if (d < best) {
+        best = d;
+        grab = i;
+      }
+    });
+    onPieceDown(e, p, index, grab);
+  };
+
   const dragging = drag !== null;
   useEffect(() => {
     if (!dragging) return;
@@ -336,7 +411,10 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       }
       setPieces((all) => {
         const spot = snapFor(d, all);
-        if (spot && startRef.current === null) startRef.current = Date.now();
+        if (spot && !clock.current.started) {
+          clock.current.started = true;
+          clock.current.since = Date.now();
+        }
         return all.map((p) => (p.id === d.id ? { ...p, at: spot, loose: false } : p));
       });
     };
@@ -352,7 +430,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (phase !== "playing" || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (phase !== "playing" || paused || e.metaKey || e.ctrlKey || e.altKey) return;
       const id = dragRef.current?.id ?? selected;
       if (!id) return;
       const anchor = dragRef.current?.grab ?? lastGrab.current;
@@ -363,16 +441,72 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [phase, selected, transformPiece]);
+  }, [phase, paused, selected, transformPiece]);
 
   const liftedId = drag?.moved ? drag.id : null;
   const covered = pieces.reduce((n, p) => n + (p.at && !p.loose && p.id !== liftedId ? p.cells.length : 0), 0);
   const gaps = puzzle.board.length - covered;
 
+  const scored = !isArchive && !isReplay && !initial;
+  const clockMs = () => clock.current.base + (clock.current.since === null ? 0 : Date.now() - clock.current.since);
+  const stopClock = useCallback(() => {
+    const c = clock.current;
+    if (c.since !== null) {
+      c.base += Date.now() - c.since;
+      c.since = null;
+    }
+  }, []);
+  const runClock = useCallback(() => {
+    const c = clock.current;
+    if (c.started && c.since === null) c.since = Date.now();
+  }, []);
+
+  const live = useRef({ scored, phase, pieces });
+  live.current = { scored, phase, pieces };
+  const persist = useCallback(() => {
+    const { scored: isScored, phase: ph, pieces: ps } = live.current;
+    if (!isScored || ph !== "playing") return;
+    const c = clock.current;
+    saveProgress(dateKey, { pieces: ps, elapsedMs: c.base + (c.since === null ? 0 : Date.now() - c.since), started: c.started });
+  }, [dateKey]);
+
+  useEffect(persist, [pieces, persist]);
+
+  // Leaving the tab, switching days, or closing the page stops the clock and saves; the scored game comes back covered.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        stopClock();
+        persist();
+        if (live.current.scored && live.current.phase === "playing" && clock.current.started) setPaused(true);
+      } else if (!live.current.scored) runClock();
+    };
+    const onPageHide = () => {
+      stopClock();
+      persist();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+      stopClock();
+      persist();
+    };
+  }, [persist, runClock, stopClock]);
+
+  const resume = () => {
+    setPaused(false);
+    runClock();
+  };
+
   const finish = useCallback(() => {
-    const timeMs = startRef.current ? Date.now() - startRef.current : 0;
+    stopClock();
+    const timeMs = clock.current.base;
+    if (scored) saveProgress(dateKey, null);
     const settledPieces = pieces.map((p) => (p.loose ? { ...p, at: null, loose: false } : p));
     setPieces(settledPieces);
+    setFinalPieces(settledPieces);
     setResult({ gaps, timeMs });
     setPhase("done");
     setConfirming(false);
@@ -382,7 +516,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       if (saveAttempt(GAME, dateKey, attempt)) setRecorded(attempt);
     }
     window.setTimeout(() => setShowCard(true), gaps === 0 ? 1500 : 250);
-  }, [gaps, isReplay, isArchive, pieces, dateKey]);
+  }, [gaps, isReplay, isArchive, pieces, dateKey, scored, stopClock]);
 
   useEffect(() => {
     if (phase === "playing" && !dragging && gaps === 0) finish();
@@ -403,7 +537,8 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     setRevealing(false);
     setCopied(false);
     setSelected(null);
-    startRef.current = null;
+    clock.current = { base: 0, since: null, started: false };
+    setPaused(false);
   };
 
   const reveal = () => {
@@ -417,7 +552,13 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     setShowCard(false);
   };
 
-  const elapsed = phase === "playing" ? (startRef.current ? now - startRef.current : 0) : (result?.timeMs ?? 0);
+  const showMine = () => {
+    if (finalPieces) setPieces(finalPieces);
+    setRevealing(false);
+    setShowCard(false);
+  };
+
+  const elapsed = phase === "playing" ? clockMs() : (result?.timeMs ?? 0);
   const describe = (r: { gaps: number; timeMs: number }) =>
     `${r.gaps === 0 ? "perfectly snug" : plural(r.gaps, "hole")} in ${formatDuration(r.timeMs)}`;
   const shareLine = recorded ? `Snug #${number}: ${describe(recorded)}` : "";
@@ -499,7 +640,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
         <div style={{ height: compact ? 10 : 16 }} />
         </div>
 
-        <div ref={playRef} style={{ position: "relative", width: "100%", height: width ? layout.height : 420 }}>
+        <div ref={playRef} style={{ position: "relative", width: "100%", height: width ? layout.height : 420, touchAction: "none" }}>
           {width > 0 && (
             <>
               <div
@@ -529,6 +670,18 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                 perfect={perfect}
               />
 
+              {phase === "playing" &&
+                pieces.map((p, index) => {
+                  if (p.at || (drag?.moved && drag.id === p.id)) return null;
+                  const slot = layout.slots[index]!;
+                  return (
+                    <div
+                      key={`hit-${p.id}`}
+                      onPointerDown={(e) => onSlotDown(e, p, index)}
+                      style={{ position: "absolute", left: slot.x, top: slot.y, width: slot.size, height: slot.size, zIndex: 4, cursor: "grab", touchAction: "none" }}
+                    />
+                  );
+                })}
               {pieces.map((p, index) => {
                 const pos = piecePos(p, index);
                 const { w, h } = bounds(p.cells);
@@ -565,6 +718,32 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                 );
               })}
 
+              {paused && phase === "playing" && (
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: -12,
+                    zIndex: 95,
+                    display: "grid",
+                    placeItems: "center",
+                    borderRadius: 18,
+                    background: `repeating-linear-gradient(45deg, rgba(160,130,90,.08) 0 6px, transparent 6px 12px), ${LINEN}`,
+                    boxShadow: "inset 0 2px 12px rgba(80,45,20,.2)",
+                  }}
+                >
+                  <StitchBorder inset={9} radius={12} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed="paused" />
+                  <div style={{ textAlign: "center", padding: 20, maxWidth: 360 }}>
+                    <div style={{ fontFamily: SCRIPT, fontSize: 52, lineHeight: 1, color: BINDING, fontWeight: 700 }}>Paused</div>
+                    <p style={{ fontSize: 15, margin: "10px 0 18px", lineHeight: 1.5 }}>
+                      Your clock stopped at {formatDuration(clockMs())}. Today&apos;s quilt stays covered until you pick it back up.
+                    </p>
+                    <Btn primary onClick={resume}>
+                      Resume
+                    </Btn>
+                  </div>
+                </div>
+              )}
+
               {showCard && result && (
                 <ResultCard
                   number={number}
@@ -577,6 +756,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                   describe={describe}
                   onCopy={copyShare}
                   onReveal={reveal}
+                  onShowMine={showMine}
                   onPlayAgain={playAgain}
                   onClose={() => setShowCard(false)}
                   center={layout.side ? { x: tray.x + tray.w / 2, y: tray.y + tray.h / 2 } : undefined}
@@ -590,8 +770,8 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 20, alignItems: "center" }}>
           {phase === "playing" ? (
             <>
-              <Btn small={compact} disabled={!selected} onClick={() => selected && transformPiece(selected, rotateCW, lastGrab.current)}>Turn</Btn>
-              <Btn small={compact} onClick={() => setPieces((all) => all.map((p) => ({ ...p, at: null, loose: false })))}>{compact ? "Empty" : "Empty the quilt"}</Btn>
+              <Btn small={compact} disabled={!selected || paused} onClick={() => selected && transformPiece(selected, rotateCW, lastGrab.current)}>Turn</Btn>
+              <Btn small={compact} disabled={paused} onClick={() => setPieces((all) => all.map((p) => ({ ...p, at: null, loose: false })))}>{compact ? "Empty" : "Empty the quilt"}</Btn>
               <span style={{ flex: 1 }} />
               {(isReplay || isArchive) && (
                 <span style={{ fontSize: 13, opacity: 0.7 }}>{isArchive ? "Past quilt, not scored" : "Replay, not scored"}</span>
@@ -603,15 +783,33 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                   <Btn small={compact} primary onClick={finish}>Tie it off</Btn>
                 </>
               ) : (
-                <Btn small={compact} primary disabled={covered === 0} onClick={() => setConfirming(true)}>Tie it off</Btn>
+                <Btn small={compact} primary disabled={covered === 0 || paused} onClick={() => setConfirming(true)}>Tie it off</Btn>
               )}
             </>
           ) : (
             <>
-              {revealing && <span style={{ fontSize: 14 }}>Showing one perfect fill.</span>}
+              {!compact && <span style={{ fontSize: 14, opacity: 0.8 }}>{revealing ? "Showing one perfect fill." : "Showing your quilt."}</span>}
               <span style={{ flex: 1 }} />
-              {!showCard && <Btn small={compact} onClick={() => setShowCard(true)}>View result</Btn>}
-              <Btn small={compact} primary onClick={playAgain}>Play again (unscored)</Btn>
+              {revealing ? (
+                <Btn small={compact} onClick={showMine}>
+                  {compact ? "My quilt" : "Show my quilt"}
+                </Btn>
+              ) : (
+                result &&
+                result.gaps > 0 && (
+                  <Btn small={compact} onClick={reveal}>
+                    {compact ? "Perfect fill" : "Show a perfect fill"}
+                  </Btn>
+                )
+              )}
+              {!showCard && (
+                <Btn small={compact} onClick={() => setShowCard(true)}>
+                  {compact ? "Result" : "View result"}
+                </Btn>
+              )}
+              <Btn small={compact} primary onClick={playAgain}>
+                {compact ? "Play again" : "Play again (unscored)"}
+              </Btn>
             </>
           )}
         </div>

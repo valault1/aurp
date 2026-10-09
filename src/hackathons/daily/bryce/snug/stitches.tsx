@@ -177,7 +177,7 @@ export function StitchBorder({
     [size, inset, radius, seed, stitch, gap, width],
   );
   return (
-    <svg ref={ref} aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "visible" }}>
+    <svg ref={ref} aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none", overflow: "hidden" }}>
       {paths && <Stitching paths={paths} width={width} color={color} />}
     </svg>
   );
