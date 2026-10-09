@@ -1,0 +1,111 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <!--
+    Mirrors the retro-California start screen in
+    src/hackathons/simpleCompetition/lapRacer/styles.ts (.start-screen and friends).
+    Keep the gradients in step with that file if the start screen is restyled.
+  -->
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+    }
+
+    .screen {
+      position: relative;
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: "Helvetica Neue", "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: linear-gradient(180deg, #241056 0%, #5b1c86 32%, #c33189 55%, #ff6b52 74%, #ffb03a 100%);
+    }
+
+    /* Banded sunset disc. */
+    .sun {
+      position: absolute;
+      top: 10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      background: linear-gradient(180deg, #fff2a6 0%, #ffd24a 42%, #ff5a6e 100%);
+      -webkit-mask: linear-gradient(#000 55%, transparent 55%), repeating-linear-gradient(#000 0 10px, transparent 10px 19px);
+      -webkit-mask-composite: source-over;
+      filter: drop-shadow(0 0 60px rgba(255, 120, 80, .6));
+    }
+
+    /* Neon floor receding to the horizon. */
+    .grid {
+      position: absolute;
+      left: -25%;
+      right: -25%;
+      bottom: 0;
+      height: 46%;
+      background-image: linear-gradient(rgba(255, 54, 161, .85) 3px, transparent 3px),
+        linear-gradient(90deg, rgba(255, 54, 161, .75) 3px, transparent 3px);
+      background-size: 100% 44px, 74px 100%;
+      transform: perspective(620px) rotateX(66deg);
+      transform-origin: bottom center;
+      -webkit-mask: linear-gradient(transparent, #000 55%);
+    }
+
+    .inner {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding-bottom: 2%;
+    }
+
+    .kicker {
+      font: 800 20px inherit;
+      letter-spacing: 12px;
+      color: #fff4d2;
+      /* The kicker sits over the sun, so it needs a dark halo to survive. */
+      text-shadow: 0 2px 10px rgba(90, 20, 60, .9), 0 0 24px rgba(120, 30, 70, .8);
+    }
+
+    .title {
+      margin: 10px 0 8px;
+      font: 900 196px/0.9 "Arial Black", "Helvetica Neue", sans-serif;
+      letter-spacing: 10px;
+      background: linear-gradient(180deg, #ffffff 8%, #ffe07a 38%, #ff69a8 62%, #8f7bff 92%);
+      -webkit-background-clip: text;
+      color: transparent;
+      -webkit-text-stroke: 3px rgba(255, 255, 255, .16);
+      filter: drop-shadow(0 5px 0 #7a1b6b) drop-shadow(0 0 30px rgba(255, 90, 160, .55));
+    }
+
+    .sub {
+      font: 600 22px inherit;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      color: #fff;
+      opacity: .9;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, .4);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="screen">
+    <div class="grid"></div>
+    <div class="sun"></div>
+    <div class="inner">
+      <div class="kicker">CHAMPIONSHIP</div>
+      <h2 class="title">APEX</h2>
+      <div class="sub">outrun the pack · set the record</div>
+    </div>
+  </div>
+</body>
+
+</html>

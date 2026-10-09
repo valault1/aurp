@@ -213,6 +213,20 @@ function sanitize(rawHtml: string): string {
     }
   });
 
+  // Galleries carry hard-coded pixel widths on every box, which overflow a
+  // phone no matter what the stylesheet says. Strip them and let CSS lay out.
+  root.querySelectorAll("ul.gallery, ul.gallery *").forEach((el) => {
+    el.removeAttribute("width");
+    el.removeAttribute("height");
+    const kept = (el.getAttribute("style") ?? "")
+      .split(";")
+      .filter((decl) => !/^\s*(width|height|max-width|min-width)/i.test(decl))
+      .join(";")
+      .trim();
+    if (kept) el.setAttribute("style", kept);
+    else el.removeAttribute("style");
+  });
+
   // Wide tables need their own scroll container or they blow out the layout.
   root.querySelectorAll("table.wikitable").forEach((table) => {
     const wrap = doc.createElement("div");

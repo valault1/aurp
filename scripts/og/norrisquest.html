@@ -1,0 +1,185 @@
+<!doctype html>
+<html>
+
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=IM+Fell+English+SC&family=Playfair+Display:ital,wght@0,400;0,900;1,400&display=swap" />
+  <!--
+    The chart-room sheet from src/hackathons/daily/val/norrisQuest/tokens.ts:
+    the same paper stack (tea stain, laid lines, graticule, foxing, folds) and
+    the Masthead from NorrisQuest.tsx, scaled up to 1200x630.
+  -->
+  <style>
+    html,
+    body {
+      margin: 0;
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+    }
+
+    .sheet {
+      position: relative;
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background-color: #e6d4ae;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Latitude and longitude, under everything. */
+    .graticule {
+      position: absolute;
+      inset: 0;
+      background-image: linear-gradient(rgba(31, 66, 96, .07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(31, 66, 96, .07) 1px, transparent 1px);
+      background-size: 44px 44px;
+    }
+
+    /* Chain and wire marks of a hand-made sheet. */
+    .laid {
+      position: absolute;
+      inset: 0;
+      background-image: repeating-linear-gradient(0deg, rgba(112, 84, 46, .06) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(112, 84, 46, .055) 0 1px, transparent 1px 27px);
+    }
+
+    /* Five overlapping blots. A real sheet is never one colour twice. */
+    .tea {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(ellipse 58% 44% at 14% 8%, rgba(255, 250, 234, .92), transparent 70%),
+        radial-gradient(ellipse 48% 38% at 86% 22%, rgba(247, 233, 203, .78), transparent 72%),
+        radial-gradient(ellipse 66% 48% at 24% 92%, rgba(168, 131, 76, .36), transparent 70%),
+        radial-gradient(ellipse 44% 34% at 96% 84%, rgba(144, 106, 54, .4), transparent 70%),
+        radial-gradient(ellipse 38% 44% at 62% 44%, rgba(255, 249, 232, .5), transparent 75%);
+    }
+
+    /* Rust spots, margins only. */
+    .foxing {
+      position: absolute;
+      inset: 0;
+      background-image: radial-gradient(circle 28px at 3% 64%, rgba(133, 88, 38, .3), transparent 72%),
+        radial-gradient(circle 15px at 2% 30%, rgba(133, 88, 38, .3), transparent 70%),
+        radial-gradient(circle 34px at 97% 52%, rgba(133, 88, 38, .3), transparent 74%),
+        radial-gradient(circle 12px at 95% 8%, rgba(133, 88, 38, .3), transparent 70%),
+        radial-gradient(circle 22px at 6% 94%, rgba(133, 88, 38, .3), transparent 72%);
+    }
+
+    /* Two creases down, one across. */
+    .folds {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(90deg, transparent calc(33.3% - 3px), rgba(118, 88, 48, .16) calc(33.3% - 1px), rgba(255, 250, 236, .5) calc(33.3% + 1px), transparent calc(33.3% + 3px)),
+        linear-gradient(90deg, transparent calc(66.6% - 3px), rgba(118, 88, 48, .16) calc(66.6% - 1px), rgba(255, 250, 236, .5) calc(66.6% + 1px), transparent calc(66.6% + 3px)),
+        linear-gradient(0deg, transparent calc(28% - 3px), rgba(118, 88, 48, .16) calc(28% - 1px), rgba(255, 250, 236, .5) calc(28% + 1px), transparent calc(28% + 3px));
+    }
+
+    /* Paper fibre. */
+    .grain {
+      position: absolute;
+      inset: 0;
+      opacity: .22;
+      mix-blend-mode: multiply;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='5' seed='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* Double-ruled chart border, like the cartouche. */
+    .border {
+      position: absolute;
+      inset: 26px;
+      border: 2px solid #b4945d;
+      outline: 1px solid rgba(180, 148, 93, .55);
+      outline-offset: 7px;
+    }
+
+    .inner {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      width: 880px;
+    }
+
+    .edition {
+      font: 600 17px Cinzel, Georgia, serif;
+      letter-spacing: .32em;
+      text-transform: uppercase;
+      color: #7a5214;
+    }
+
+    .title {
+      margin: 18px 0 0;
+      font: 900 132px/0.98 "Playfair Display", Georgia, serif;
+      letter-spacing: -0.015em;
+      color: #3b2e20;
+    }
+
+    .rule {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin: 30px auto 24px;
+      width: 620px;
+    }
+
+    .rule .vermilion {
+      height: 3px;
+      width: 88px;
+      background: #b23a2a;
+    }
+
+    .rule .hair {
+      height: 1px;
+      flex: 1;
+      background: #b4945d;
+    }
+
+    .rule .brass {
+      height: 3px;
+      width: 22px;
+      background: #a5771f;
+    }
+
+    .tagline {
+      font: italic 400 27px "Iowan Old Style", Charter, Palatino, Georgia, serif;
+      color: #6b5637;
+    }
+
+    .stamp {
+      margin-top: 34px;
+      font: 400 15px "IM Fell English SC", Georgia, serif;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: rgba(178, 58, 42, .78);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="sheet">
+    <div class="graticule"></div>
+    <div class="laid"></div>
+    <div class="tea"></div>
+    <div class="foxing"></div>
+    <div class="folds"></div>
+    <div class="grain"></div>
+    <div class="border"></div>
+    <div class="inner">
+      <div class="edition">The Chart Room</div>
+      <h1 class="title">NorrisQuest</h1>
+      <div class="rule">
+        <div class="vermilion"></div>
+        <div class="hair"></div>
+        <div class="brass"></div>
+      </div>
+      <div class="tagline">Six links to Chuck Norris &middot; no more</div>
+      <div class="stamp">A daily voyage</div>
+    </div>
+  </div>
+</body>
+
+</html>
