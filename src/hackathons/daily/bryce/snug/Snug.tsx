@@ -4,9 +4,11 @@ import { DECOY_COUNT, generatePuzzle } from "./generator";
 import { bounds, cellKey, rotateCW, shapeKey, type Cell } from "./pieces";
 import { BINDING, LINEN, YARNS } from "./quilt";
 import { StitchBorder } from "./stitches";
+import { QuiltCalendar } from "./calendar";
+import { GAME, loadBest, saveBest } from "./records";
+import { CalendarDays } from "lucide-react";
 import { BoardSvg, Btn, FONT, HowToPlay, INK, KnitDefs, PanelStitches, PatchSvg, QuiltBackdrop, RUST_THREAD, ResultCard, SCRIPT, Stat, loadFonts, panelStyle, plural, type Attempt, type PieceState, type Spot } from "./parts";
 
-const GAME = "snug";
 const HOW_TO_SEEN = "snug.howToSeen";
 /** Backdated a week so there are past quilts to play from day one. */
 const LAUNCH_DATE = "2026-10-01";
@@ -63,7 +65,12 @@ interface Progress {
   pieces: PieceState[];
   elapsedMs: number;
   started: boolean;
+  /** The piece the one-time hint placed, so a reload cannot earn a second hint. */
+  hintId?: string | null;
 }
+
+/** Active play time before the one-time hint becomes available. */
+const HINT_AFTER_MS = 5 * 60_000;
 
 const progressKey = (dateKey: string) => `${GAME}.progress.${dateKey}`;
 
@@ -105,48 +112,46 @@ const shift = (cells: readonly Cell[], s: Spot) => cells.map(([x, y]) => [x + s.
 
 export function Snug() {
   const today = useMemo(todayKey, []);
-  // Unfinished games from earlier days can never be scored, so their saved progress is dropped.
-  useEffect(() => {
-    try {
-      for (const k of Object.keys(localStorage)) if (k.startsWith(`${GAME}.progress.`) && k !== progressKey(today)) localStorage.removeItem(k);
-    } catch {
-      // Storage can be blocked; nothing to clean up then.
-    }
-  }, [today]);
   const [dateKey, setDateKey] = useState(today);
   return <SnugDay key={dateKey} dateKey={dateKey} today={today} onPickDate={setDateKey} />;
 }
 
-/** One day's quilt. Past days are practice only: nothing is loaded or saved. */
+/** One day's quilt. Only today's first finish is scored; every finish updates that day's best run. */
 function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: string; onPickDate: (key: string) => void }) {
   const isArchive = dateKey < today;
   const puzzle = useMemo(() => generatePuzzle(dateKey, YARNS.length), [dateKey]);
   const number = puzzleNumber(dateKey, LAUNCH_DATE);
   const boardSet = useMemo(() => new Set(puzzle.board.map(([x, y]) => cellKey(x, y))), [puzzle]);
-  const initial = useMemo(() => (isArchive ? null : loadAttempt<Attempt>(GAME, dateKey)), [dateKey, isArchive]);
-  // Only today's first attempt is scored; it alone is saved as it goes and covered while paused.
-  const progress = useMemo(() => (isArchive || initial ? null : loadProgress(dateKey)), [dateKey, isArchive, initial]);
+  // A finished first run is shown on any day, including past ones; only unplayed past days are fresh practice.
+  const initial = useMemo(() => loadAttempt<Attempt>(GAME, dateKey), [dateKey]);
+  const bestInit = useMemo(() => loadBest(dateKey), [dateKey]);
+  // Opens finished on the scored run; a past day you only practiced opens on your best practice run.
+  const shown = initial ?? (isArchive ? bestInit : null);
+  // Any unfinished first run (today's scored game or a past day's practice) is saved as it goes and restored.
+  const progress = useMemo(() => (shown ? null : loadProgress(dateKey)), [dateKey, shown]);
   const freshPieces = useCallback(
     (): PieceState[] => puzzle.pieces.map((p) => ({ id: p.id, cells: p.cells, color: p.color, at: null })),
     [puzzle],
   );
 
   const [recorded, setRecorded] = useState<Attempt | null>(initial);
-  const [pieces, setPieces] = useState<PieceState[]>(() => initial?.pieces ?? progress?.pieces ?? freshPieces());
-  const [phase, setPhase] = useState<"playing" | "done">(initial ? "done" : "playing");
-  const [result, setResult] = useState<{ gaps: number; timeMs: number } | null>(initial);
+  const [pieces, setPieces] = useState<PieceState[]>(() => shown?.pieces ?? progress?.pieces ?? freshPieces());
+  const [phase, setPhase] = useState<"playing" | "done">(shown ? "done" : "playing");
+  const [result, setResult] = useState<{ gaps: number; timeMs: number; hinted?: boolean } | null>(shown);
+  const [bestRun, setBestRun] = useState<Attempt | null>(bestInit);
+  const [showCalendar, setShowCalendar] = useState(false);
   const [isReplay, setIsReplay] = useState(false);
-  const [showCard, setShowCard] = useState(!!initial);
+  const [showCard, setShowCard] = useState(!!shown);
   const [revealing, setRevealing] = useState(false);
   // The quilt you finished with: the recorded run when returning later, or this session's latest replay.
-  const [finalPieces, setFinalPieces] = useState<PieceState[] | null>(initial?.pieces ?? null);
+  const [finalPieces, setFinalPieces] = useState<PieceState[] | null>(shown?.pieces ?? null);
   const [confirming, setConfirming] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [copied, setCopied] = useState(false);
   const [showHowTo, setShowHowTo] = useState(() => {
     try {
-      return !initial && !localStorage.getItem(HOW_TO_SEEN);
+      return !shown && !localStorage.getItem(HOW_TO_SEEN);
     } catch {
       return false;
     }
@@ -169,7 +174,11 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   const lastGrab = useRef(0);
   // Active time only: `base` is time already played, `since` marks when the current running stretch began.
   const clock = useRef({ base: progress?.elapsedMs ?? 0, since: null as number | null, started: progress?.started ?? false });
-  const [paused, setPaused] = useState(!!progress?.started);
+  // Only today's scored game comes back covered; practice picks up where it left off.
+  const [paused, setPaused] = useState(!!progress?.started && !isArchive);
+  const [hintId, setHintId] = useState<string | null>(progress?.hintId ?? null);
+  const hintRef = useRef(hintId);
+  hintRef.current = hintId;
   const playRef = useRef<HTMLDivElement>(null);
   const topRef = useRef<HTMLDivElement>(null);
 
@@ -305,7 +314,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     (id: string, fn: (cells: readonly Cell[]) => Cell[], anchor: number) => {
       setPieces((all) =>
         all.map((p) => {
-          if (p.id !== id) return p;
+          if (p.id !== id || p.id === hintRef.current) return p;
           const cells = fn(p.cells);
           if (!p.at || dragRef.current?.moved) return { ...p, cells };
           // A shape that looks the same after turning stays put instead of pivoting off its spot.
@@ -346,7 +355,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   };
 
   const onPieceDown = (e: ReactPointerEvent, p: PieceState, index: number, grab: number) => {
-    if (phase !== "playing" || e.button !== 0) return;
+    if (phase !== "playing" || e.button !== 0 || p.id === hintId) return;
     e.preventDefault();
     const { px, py } = pointerIn(e);
     const pos = piecePos(p, index);
@@ -448,6 +457,8 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   const gaps = puzzle.board.length - covered;
 
   const scored = !isArchive && !isReplay && !initial;
+  // Replays are throwaway; every other unfinished run is saved so leaving and returning keeps the clock and board.
+  const saved = !isReplay && !shown;
   const clockMs = () => clock.current.base + (clock.current.since === null ? 0 : Date.now() - clock.current.since);
   const stopClock = useCallback(() => {
     const c = clock.current;
@@ -461,16 +472,21 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     if (c.started && c.since === null) c.since = Date.now();
   }, []);
 
-  const live = useRef({ scored, phase, pieces });
-  live.current = { scored, phase, pieces };
+  const live = useRef({ scored, saved, phase, pieces, hintId });
+  live.current = { scored, saved, phase, pieces, hintId };
   const persist = useCallback(() => {
-    const { scored: isScored, phase: ph, pieces: ps } = live.current;
-    if (!isScored || ph !== "playing") return;
+    const { saved: isSaved, phase: ph, pieces: ps } = live.current;
+    if (!isSaved || ph !== "playing") return;
     const c = clock.current;
-    saveProgress(dateKey, { pieces: ps, elapsedMs: c.base + (c.since === null ? 0 : Date.now() - c.since), started: c.started });
+    saveProgress(dateKey, {
+      pieces: ps,
+      elapsedMs: c.base + (c.since === null ? 0 : Date.now() - c.since),
+      started: c.started,
+      hintId: live.current.hintId,
+    });
   }, [dateKey]);
 
-  useEffect(persist, [pieces, persist]);
+  useEffect(persist, [pieces, hintId, persist]);
 
   // Leaving the tab, switching days, or closing the page stops the clock and saves; the scored game comes back covered.
   useEffect(() => {
@@ -495,6 +511,11 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     };
   }, [persist, runClock, stopClock]);
 
+  useEffect(() => {
+    if (!paused) runClock();
+    // Runs once on mount: a restored practice game resumes its clock immediately.
+  }, []);
+
   const resume = () => {
     setPaused(false);
     runClock();
@@ -503,20 +524,21 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   const finish = useCallback(() => {
     stopClock();
     const timeMs = clock.current.base;
-    if (scored) saveProgress(dateKey, null);
+    if (saved) saveProgress(dateKey, null);
     const settledPieces = pieces.map((p) => (p.loose ? { ...p, at: null, loose: false } : p));
     setPieces(settledPieces);
     setFinalPieces(settledPieces);
-    setResult({ gaps, timeMs });
+    setResult({ gaps, timeMs, hinted: !!hintId });
     setPhase("done");
     setConfirming(false);
     setSelected(null);
+    setBestRun(saveBest(dateKey, { gaps, timeMs, pieces: settledPieces, hinted: !!hintId }));
     if (!isReplay && !isArchive) {
-      const attempt: Attempt = { gaps, timeMs, pieces: settledPieces };
+      const attempt: Attempt = { gaps, timeMs, pieces: settledPieces, hinted: !!hintId };
       if (saveAttempt(GAME, dateKey, attempt)) setRecorded(attempt);
     }
     window.setTimeout(() => setShowCard(true), gaps === 0 ? 1500 : 250);
-  }, [gaps, isReplay, isArchive, pieces, dateKey, scored, stopClock]);
+  }, [gaps, isReplay, isArchive, pieces, dateKey, saved, stopClock, hintId]);
 
   useEffect(() => {
     if (phase === "playing" && !dragging && gaps === 0) finish();
@@ -539,6 +561,41 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
     setSelected(null);
     clock.current = { base: 0, since: null, started: false };
     setPaused(false);
+    setHintId(null);
+  };
+
+  /** Places one solution patch where it belongs, moving anything in its way back to the basket. */
+  const applyHint = () => {
+    if (hintId) return;
+    const placed = (p: PieceState) => (p.at && !p.loose ? new Set(shift(p.cells, p.at).map(([x, y]) => cellKey(x, y))) : null);
+    const target = (id: string) => {
+      const s = puzzle.solution[id]!;
+      return new Set(shift(s.cells, { x: s.x, y: s.y }).map(([x, y]) => cellKey(x, y)));
+    };
+    const same = (a: Set<string>, b: Set<string>) => a.size === b.size && [...a].every((k) => b.has(k));
+    const occupied = pieces.map(placed);
+    const satisfied = (id: string) => occupied.some((o) => o && same(o, target(id)));
+    const ids = Object.keys(puzzle.solution).filter((id) => !satisfied(id));
+    // Prefer a patch still in the basket, then the one whose spot disturbs the fewest placed patches, then the biggest.
+    const cost = (id: string) => {
+      const t = target(id);
+      const inWay = occupied.filter((o, i) => o && pieces[i]!.id !== id && [...o].some((k) => t.has(k))).length;
+      const onBoard = pieces.find((p) => p.id === id)?.at ? 1 : 0;
+      return onBoard * 100 + inWay * 10 - t.size;
+    };
+    const pick = ids.sort((a, b) => cost(a) - cost(b))[0];
+    if (!pick) return;
+    const t = target(pick);
+    const sol = puzzle.solution[pick]!;
+    setPieces((all) =>
+      all.map((p) => {
+        if (p.id === pick) return { ...p, cells: sol.cells, at: { x: sol.x, y: sol.y }, loose: false };
+        const o = placed(p);
+        return o && [...o].some((k) => t.has(k)) ? { ...p, at: null, loose: false } : p;
+      }),
+    );
+    setHintId(pick);
+    setSelected(null);
   };
 
   const reveal = () => {
@@ -559,8 +616,8 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   };
 
   const elapsed = phase === "playing" ? clockMs() : (result?.timeMs ?? 0);
-  const describe = (r: { gaps: number; timeMs: number }) =>
-    `${r.gaps === 0 ? "perfectly snug" : plural(r.gaps, "hole")} in ${formatDuration(r.timeMs)}`;
+  const describe = (r: { gaps: number; timeMs: number; hinted?: boolean }) =>
+    `${r.gaps === 0 ? "perfectly snug" : plural(r.gaps, "hole")} in ${formatDuration(r.timeMs)}${r.hinted ? " with a hint" : ""}`;
   const shareLine = recorded ? `Snug #${number}: ${describe(recorded)}` : "";
   const ghost = drag?.moved ? snapFor(drag, pieces) : null;
   const ghostPiece = ghost ? pieces.find((p) => p.id === drag!.id) : undefined;
@@ -570,8 +627,23 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
   for (const p of pieces) if (p.at && !p.loose && p.id !== liftedId) for (const [x, y] of shift(p.cells, p.at)) filled.add(cellKey(x, y));
 
   const compact = width > 0 && width < 560;
+  const sameRun = (a: { gaps: number; timeMs: number } | null, b: { gaps: number; timeMs: number } | null) =>
+    !!a && !!b && a.gaps === b.gaps && a.timeMs === b.timeMs;
+  const cardNote = [
+    isArchive && !recorded ? "Past quilts are practice, so they are not scored." : "",
+    bestRun && !sameRun(bestRun, result) && !sameRun(bestRun, recorded) ? `Your best: ${describe(bestRun)}.` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const canHint = phase === "playing" && !paused && !hintId && clock.current.started && elapsed >= HINT_AFTER_MS;
+  const shareUrl = `${window.location.origin}/snug`;
+  const canNativeShare = coarsePointer && typeof navigator.share === "function";
   const copyShare = () => {
-    navigator.clipboard?.writeText(shareLine).then(() => setCopied(true), () => setCopied(false));
+    if (canNativeShare) {
+      navigator.share({ text: shareLine, url: shareUrl }).catch(() => {});
+      return;
+    }
+    navigator.clipboard?.writeText(`${shareLine}\n${shareUrl}`).then(() => setCopied(true), () => setCopied(false));
   };
 
   return (
@@ -579,6 +651,18 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
       <QuiltBackdrop dateKey={dateKey} />
       <KnitDefs />
       {showHowTo && <HowToPlay onClose={closeHowTo} touch={coarsePointer} spares={DECOY_COUNT} />}
+      {showCalendar && (
+        <QuiltCalendar
+          current={dateKey}
+          today={today}
+          launch={LAUNCH_DATE}
+          onClose={() => setShowCalendar(false)}
+          onPick={(key) => {
+            setShowCalendar(false);
+            onPickDate(key);
+          }}
+        />
+      )}
 
       <div style={panelStyle}>
         <PanelStitches seed={`panel:${dateKey}`} />
@@ -590,9 +674,17 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
               <DayArrow label="Previous quilt" disabled={dateKey <= LAUNCH_DATE} onClick={() => onPickDate(addDays(dateKey, -1))}>
                 &lsaquo;
               </DayArrow>
-              <span style={{ opacity: 0.75 }}>
-                No. {number} &middot; {compact ? formatShortDate(dateKey) : formatLongDate(dateKey)}
-              </span>
+              <button
+                type="button"
+                onClick={() => setShowCalendar(true)}
+                title="Open the quilt calendar"
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, border: 0, background: "none", padding: "2px 4px", borderRadius: 6, fontFamily: "inherit", fontSize: "inherit", color: "inherit", cursor: "pointer" }}
+              >
+                <span style={{ opacity: 0.75 }}>
+                  No. {number} &middot; {compact ? formatShortDate(dateKey) : formatLongDate(dateKey)}
+                </span>
+                <CalendarDays size={compact ? 14 : 15} color={RUST_THREAD} />
+              </button>
               <DayArrow label="Next quilt" disabled={dateKey >= today} onClick={() => onPickDate(addDays(dateKey, 1))}>
                 &rsaquo;
               </DayArrow>
@@ -712,6 +804,7 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                       cell={cell}
                       interactive={phase === "playing"}
                       loose={p.loose && !lifted}
+                      hinted={p.id === hintId && phase === "playing"}
                       onDown={(e, i) => onPieceDown(e, p, index, i)}
                     />
                   </div>
@@ -750,8 +843,10 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
                   result={result}
                   recorded={recorded}
                   isReplay={isReplay}
-                  note={isArchive ? "Past quilts are practice, so this was not scored." : undefined}
+                  note={cardNote || undefined}
                   shareLine={shareLine}
+                  shareUrl={shareUrl}
+                  shareLabel={canNativeShare ? "Share" : undefined}
                   copied={copied}
                   describe={describe}
                   onCopy={copyShare}
@@ -771,8 +866,13 @@ function SnugDay({ dateKey, today, onPickDate }: { dateKey: string; today: strin
           {phase === "playing" ? (
             <>
               <Btn small={compact} disabled={!selected || paused} onClick={() => selected && transformPiece(selected, rotateCW, lastGrab.current)}>Turn</Btn>
-              <Btn small={compact} disabled={paused} onClick={() => setPieces((all) => all.map((p) => ({ ...p, at: null, loose: false })))}>{compact ? "Empty" : "Empty the quilt"}</Btn>
+              <Btn small={compact} disabled={paused} onClick={() => setPieces((all) => all.map((p) => (p.id === hintId ? p : { ...p, at: null, loose: false })))}>{compact ? "Empty" : "Empty the quilt"}</Btn>
               <span style={{ flex: 1 }} />
+              {canHint && (
+                <Btn small={compact} onClick={applyHint}>
+                  {compact ? "Hint" : "Use your hint"}
+                </Btn>
+              )}
               {(isReplay || isArchive) && (
                 <span style={{ fontSize: 13, opacity: 0.7 }}>{isArchive ? "Past quilt, not scored" : "Replay, not scored"}</span>
               )}

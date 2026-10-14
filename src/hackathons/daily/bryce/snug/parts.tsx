@@ -30,6 +30,8 @@ export interface Attempt {
   gaps: number;
   timeMs: number;
   pieces: PieceState[];
+  /** True when the one-time hint was used. */
+  hinted?: boolean;
 }
 
 /** Thread color for hole marks and pieces that do not fit. */
@@ -91,12 +93,15 @@ export function PatchSvg({
   cell,
   interactive,
   loose = false,
+  hinted = false,
   onDown,
 }: {
   piece: PieceState;
   cell: number;
   interactive: boolean;
   loose?: boolean;
+  /** The patch the hint placed: stitched in gold and fixed in place. */
+  hinted?: boolean;
   onDown: (e: ReactPointerEvent, cellIndex: number) => void;
 }) {
   const { w, h } = bounds(piece.cells);
@@ -127,7 +132,7 @@ export function PatchSvg({
         <path d={path} fill="none" stroke={yarn.dark} strokeWidth={2.2} />
       </g>
       <path d={path} fill="none" stroke={yarn.dark} strokeWidth={0.8} strokeLinejoin="round" />
-      <Stitching paths={stitches} width={0.88} color={loose ? RED_THREAD : THREAD} />
+      <Stitching paths={stitches} width={0.88} color={loose ? RED_THREAD : hinted ? GOLD_THREAD : THREAD} />
       {piece.cells.map(([x, y], i) => (
         <rect
           key={i}
@@ -136,7 +141,7 @@ export function PatchSvg({
           width={U}
           height={U}
           fill="transparent"
-          style={{ pointerEvents: interactive ? "all" : "none", cursor: "grab", touchAction: "none" }}
+          style={{ pointerEvents: interactive ? "all" : "none", cursor: hinted ? "default" : "grab", touchAction: "none" }}
           onPointerDown={(e) => onDown(e, i)}
           onContextMenu={(e) => e.preventDefault()}
         />
@@ -213,12 +218,16 @@ export function Btn({
 
 export function ResultCard(props: {
   number: number;
-  result: { gaps: number; timeMs: number };
+  result: { gaps: number; timeMs: number; hinted?: boolean };
   recorded: Attempt | null;
   isReplay: boolean;
   shareLine: string;
+  /** Link included with the shared result, shown under it. */
+  shareUrl?: string;
+  /** Label for the share button; defaults to Copy / Copied. */
+  shareLabel?: string;
   copied: boolean;
-  describe: (r: { gaps: number; timeMs: number }) => string;
+  describe: (r: { gaps: number; timeMs: number; hinted?: boolean }) => string;
   onCopy: () => void;
   onReveal: () => void;
   onShowMine: () => void;
@@ -257,17 +266,21 @@ export function ResultCard(props: {
       </div>
       <div style={{ fontSize: 15, marginTop: 8 }}>
         Snug No. {props.number} &middot; {formatDuration(result.timeMs)}
+        {result.hinted && <> &middot; 1 hint</>}
       </div>
       {props.note && <div style={{ fontSize: 13, marginTop: 10, opacity: 0.8 }}>{props.note}</div>}
       {isReplay && recorded && (
         <div style={{ fontSize: 13, marginTop: 10, opacity: 0.8 }}>
-          This replay was not scored. Today&apos;s recorded result: {props.describe(recorded)}.
+          This replay was not scored. Your recorded result: {props.describe(recorded)}.
         </div>
       )}
       {props.shareLine && (
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 16, padding: "8px 8px 8px 14px", borderRadius: 12, background: "rgba(123,59,46,.08)" }}>
-          <span style={{ flex: 1, fontSize: 14, textAlign: "left" }}>{props.shareLine}</span>
-          <Btn onClick={props.onCopy}>{props.copied ? "Copied" : "Copy"}</Btn>
+          <span style={{ flex: 1, fontSize: 14, textAlign: "left" }}>
+            {props.shareLine}
+            {props.shareUrl && <span style={{ display: "block", fontSize: 12, opacity: 0.6, marginTop: 2 }}>{props.shareUrl.replace(/^https?:\/\//, "")}</span>}
+          </span>
+          <Btn onClick={props.onCopy}>{props.shareLabel ?? (props.copied ? "Copied" : "Copy")}</Btn>
         </div>
       )}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center", marginTop: 18 }}>
@@ -470,19 +483,13 @@ function CloseButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-/** The rules, shown as a stitched card over a dimmed page. */
-export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; touch: boolean; spares: number }) {
+/** A stitched linen card over a dimmed page, closed by its X, Esc, or a tap outside. */
+export function StitchedModal({ label, onClose, width = 480, children }: { label: string; onClose: () => void; width?: number; children: ReactNode }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
-  const section = (heading: string, body: ReactNode) => (
-    <div style={{ marginTop: 12 }}>
-      <div style={{ fontWeight: 600, fontSize: 15 }}>{heading}</div>
-      <div style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.85 }}>{body}</div>
-    </div>
-  );
   return (
     <div
       onClick={onClose}
@@ -490,12 +497,12 @@ export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; tou
     >
       <div
         role="dialog"
-        aria-label="How to play"
+        aria-label={label}
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative",
           display: "flex",
-          width: "min(480px, 100%)",
+          width: `min(${width}px, 100%)`,
           maxHeight: "calc(100dvh - 24px)",
           padding: 15,
           borderRadius: 20,
@@ -506,10 +513,25 @@ export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; tou
           color: INK,
         }}
       >
-        <StitchBorder inset={10} radius={13} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed="how-to-play" />
+        <StitchBorder inset={10} radius={13} color={RUST_THREAD} width={2.2} stitch={7} gap={4.5} seed={label} />
         <CloseButton onClick={onClose} />
-        {/* Text scrolls inside the stitched edge so the seam stays put. */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px 6px" }}>
+        {/* Content scrolls inside the stitched edge so the seam stays put. */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "12px 8px 6px" }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+/** The rules, shown as a stitched card over a dimmed page. */
+export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; touch: boolean; spares: number }) {
+  const section = (heading: string, body: ReactNode) => (
+    <div style={{ marginTop: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: 15 }}>{heading}</div>
+      <div style={{ fontSize: 14, lineHeight: 1.5, opacity: 0.85 }}>{body}</div>
+    </div>
+  );
+  return (
+    <StitchedModal label="How to play" onClose={onClose}>
         <div style={{ fontFamily: SCRIPT, fontSize: 44, lineHeight: 1, color: BINDING, fontWeight: 700, textAlign: "center" }}>How to play</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 16 }}>
           <Step title="Drag a patch in">
@@ -550,14 +572,16 @@ export function HowToPlay({ onClose, touch, spares }: { onClose: () => void; tou
           </>,
         )}
         {section("Scoring", "Fewer holes is better, and time breaks ties. The clock starts with your first patch. A perfect fill finishes on its own; otherwise press Tie it off.")}
-        {section("One quilt a day", "Your first finish each day is your recorded result. Replays and past quilts are just for fun. A new quilt arrives at midnight.")}
+        {section("Stuck?", "After 5 minutes you can use one hint. It stitches a patch into its right spot in gold thread, and your result notes that you used it.")}
+        {section(
+          "One quilt a day",
+          "Your first finish each day is your recorded result, and your best run on every day is kept too. Replays and past quilts are not scored. Tap the date to open the calendar and jump to any day. A new quilt arrives at midnight.",
+        )}
         <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
           <Btn primary onClick={onClose}>
             Start stitching
           </Btn>
         </div>
-        </div>
-      </div>
-    </div>
+    </StitchedModal>
   );
 }
