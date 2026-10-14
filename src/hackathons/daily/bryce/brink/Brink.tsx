@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { addDays, formatLongDate, loadAttempt, puzzleNumber, saveAttempt, todayKey } from "../daily";
-import { cellKey } from "../snug/pieces";
+import { cellKey } from "../grid";
 import {
   MAX_TURNS,
   STATS,

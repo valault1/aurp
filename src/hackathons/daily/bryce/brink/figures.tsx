@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { makeRng } from "../daily";
-import { cellKey, outlineLoops, outlinePath, type Cell } from "../snug/pieces";
+import { cellKey, outlineLoops, outlinePath, type Cell } from "../grid";
 import { INK, INK_2, INK_3, INK_4, PAPER_DEEP, PAPER_LIGHT, VERMILION, arrow, blob, brush, enso, shape, type Pt } from "./ink";
 
 export const CELL = 100;

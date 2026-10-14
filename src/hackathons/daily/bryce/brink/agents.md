@@ -6,7 +6,7 @@ Daily tactics fight in an ink-and-parchment (sumi-e) style: shove ink spirits of
 - `figures.tsx` — 100 units per cell. `Terrain` (wash, rim strokes heavier on south lips, axe-cut cliff faces, drifting mist), heroes (wanderer/crane/ox), enemies (blot/spitter/brute ink blots), props (pine/boulder/lantern), signals (`Enso`, `MoveDot`, `Threat`, `CellArrow`, `SpitLine`, `Splat`, `Cracks`), `At` to place by cell.
 - `engine.ts` — pure rules. 8x8 seeded plateau, 3 heroes (wanderer shove / crane swap / ox charge; abilities target enemies only), 4 spirits (blot, spitter, brute 3hp). Enemy intents are directions that travel with the enemy when shoved. `enemyPhase` returns animation frames. Win: clear all within `MAX_TURNS` (8); lose: heroes gone, lantern broken, or mist. Score: turns, then wounds.
 - `Brink.tsx` — UI: select hero, move dots, target marks, hover previews with outcome text, undo within a turn, stepped enemy animation, one recorded attempt per day, unscored replays and past fights (`LAUNCH_DATE` 2026-10-01).
-- Grid outline helpers (`outlineLoops`, `outlinePath`, `cellKey`) are shared from `../snug/pieces.ts`.
+- Grid outline helpers (`outlineLoops`, `outlinePath`, `cellKey`) live in `../grid.ts` (kept from Snug when it moved to Bryce's site).
 
 ## Gotchas
 - All randomness is seeded per drawing (`makeRng("kind:seed")`) so strokes do not change between renders.
