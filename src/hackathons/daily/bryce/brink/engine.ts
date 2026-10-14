@@ -1,7 +1,7 @@
 // Brink rules: daily battle generation, hero actions, shoves, enemy intents, and enemy planning. Pure and deterministic.
 
 import { makeRng, type Rng } from "../daily";
-import { cellKey } from "../snug/pieces";
+import { cellKey } from "../grid";
 import type { EnemyKind, HeroKind } from "./figures";
 
 export type Dir = readonly [number, number];
