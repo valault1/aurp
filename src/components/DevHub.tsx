@@ -10,6 +10,7 @@ export const DEV_HACKATHONS = [
   { label: "Simple", path: "/simple", description: "Simple competition" },
   { label: "Server Game", path: "/servergame", description: "Server-backed game" },
   { label: "Daily", path: "/daily", description: "Daily games" },
+  { label: "Music", path: "/music", description: "Write, see, and tweak songs" },
 ];
 
 export function DevHub() {

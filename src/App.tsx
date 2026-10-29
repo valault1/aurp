@@ -16,6 +16,7 @@ import { Apex } from "@/hackathons/apex/Apex";
 import { ServerGame } from "@/hackathons/serverGame/ServerGame";
 import { SnugPage, NorrisQuestPage } from "@/hackathons/daily/ProdGames";
 import { Daily } from "@/hackathons/daily/Daily";
+import { Music } from "@/hackathons/music/Music";
 import { motion } from "framer-motion";
 
 const NAV_HIDDEN_KEY = "aurp.navHidden";
@@ -362,6 +363,7 @@ export function App() {
         <Route path="/snug/*" element={<SnugPage />} />
         <Route path="/norrisquest/*" element={<NorrisQuestPage />} />
         <Route path="/daily/*" element={<Daily />} />
+        <Route path="/music/*" element={<Music />} />
         <Route path="/login" element={<Login />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/dev" element={<DevHub />} />

@@ -20,6 +20,7 @@
     "@hello-pangea/dnd": "^18.0.1",
     "@mui/icons-material": "^7.3.9",
     "@mui/material": "^7.3.8",
+    "@tonejs/midi": "^2.0.28",
     "colyseus": "^0.15.0",
     "colyseus.js": "^0.15.0",
     "framer-motion": "^12.34.0",
@@ -28,7 +29,8 @@
     "react": "^19",
     "react-confetti": "^6.4.0",
     "react-dom": "^19",
-    "react-router-dom": "^7.13.0"
+    "react-router-dom": "^7.13.0",
+    "tone": "^15.1.22"
   },
   "devDependencies": {
     "@types/bun": "latest",
