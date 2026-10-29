@@ -1,12 +1,8 @@
 import { Box, Typography } from "@mui/material";
+import { SnugStudio } from "./SnugStudio";
 
 export function BryceMusicV1() {
-  return (
-    <Box sx={{ textAlign: "center" }}>
-      <Typography variant="h5">Bryce v1</Typography>
-      <Typography color="text.secondary">Coming soon</Typography>
-    </Box>
-  );
+  return <SnugStudio />;
 }
 
 export function BryceMusicV2() {
