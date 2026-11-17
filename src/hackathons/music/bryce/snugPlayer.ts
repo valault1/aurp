@@ -168,6 +168,32 @@ function makeVoice(sound: SnugSound, dest: Tone.InputNode): Voice {
         envelope: { attack: 0.004, decay: 2.2, sustain: 0.05, release: 0.8 },
         volume: -8,
       }), [new Tone.Filter(1600, "lowpass")]);
+    case "piano":
+      // Few overtones and a low filter keep it warm instead of twangy; its own hall rings like a held pedal.
+      return melodic(output, new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "custom", partials: [1, 0.2, 0.05, 0.015] },
+        envelope: { attack: 0.006, decay: 4, sustain: 0, release: 2.4, decayCurve: "exponential" },
+        volume: -15,
+      }), [new Tone.Filter(1500, "lowpass"), new Tone.Freeverb({ roomSize: 0.82, dampening: 2200, wet: 0.26 })]);
+    case "accordion":
+      // Two reeds tuned slightly apart, with a slow bellows swell.
+      return melodic(output, new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "fatsawtooth", count: 2, spread: 16 },
+        envelope: { attack: 0.03, decay: 0.2, sustain: 0.85, release: 0.15 },
+        volume: -24,
+      }), [new Tone.Filter(1700, "lowpass"), new Tone.Tremolo(5.5, 0.18).start()]);
+    case "mandolin":
+      return melodic(output, new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "custom", partials: [1, 0.55, 0.4, 0.25, 0.15, 0.08] },
+        envelope: { attack: 0.002, decay: 0.32, sustain: 0, release: 0.18 },
+        volume: -14,
+      }), [new Tone.Filter(3200, "lowpass"), new Tone.Chorus(3, 1.5, 0.3).start()]);
+    case "flute":
+      return melodic(output, new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "custom", partials: [1, 0.28, 0.1, 0.04] },
+        envelope: { attack: 0.07, decay: 0.2, sustain: 0.8, release: 0.25 },
+        volume: -15,
+      }), [new Tone.Vibrato(4.8, 0.07)]);
     case "epiano":
       return melodic(output, new Tone.PolySynth(Tone.FMSynth, {
         harmonicity: 1,
@@ -188,6 +214,12 @@ function makeVoice(sound: SnugSound, dest: Tone.InputNode): Voice {
         envelope: { attack: 0.9, decay: 0.6, sustain: 0.8, release: 2.2 },
         volume: -22,
       }), [new Tone.Filter(900, "lowpass"), new Tone.Chorus(0.6, 3, 0.4).start()]);
+    case "glow":
+      return melodic(output, new Tone.PolySynth(Tone.Synth, {
+        oscillator: { type: "fatsine", count: 3, spread: 14 },
+        envelope: { attack: 1.8, decay: 1, sustain: 0.85, release: 3.5 },
+        volume: -20,
+      }), [new Tone.Filter(1400, "lowpass"), new Tone.Freeverb({ roomSize: 0.9, dampening: 2000, wet: 0.4 })]);
     case "softbass":
       return melodic(output, new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: "triangle" },

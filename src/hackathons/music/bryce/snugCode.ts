@@ -41,8 +41,8 @@ export function snugToCode(song: SnugSong, exportName: string): string {
 
 // General MIDI instruments, counted from zero.
 const GM_PROGRAM: Record<Exclude<SnugSound, "brushes" | "hand" | "weather">, number> = {
-  musicbox: 10, celesta: 8, kalimba: 108, vibes: 11, marimba: 12, felt: 0, epiano: 4, ocarina: 79, pizz: 45,
-  warmpad: 89, softbass: 32, pluckbass: 33,
+  musicbox: 10, celesta: 8, kalimba: 108, vibes: 11, marimba: 12, felt: 0, piano: 0, epiano: 4, ocarina: 79, flute: 73, accordion: 21, mandolin: 25, pizz: 45,
+  warmpad: 89, glow: 88, softbass: 32, pluckbass: 33,
 };
 
 export function snugToMidi(song: SnugSong): Uint8Array {

@@ -2,8 +2,8 @@
 import type { Instrument, Note } from "../song";
 
 export type SnugSound =
-  | "musicbox" | "celesta" | "kalimba" | "vibes" | "marimba" | "felt" | "epiano" | "ocarina" | "pizz"
-  | "warmpad" | "softbass" | "pluckbass" | "brushes" | "hand" | "weather";
+  | "musicbox" | "celesta" | "kalimba" | "vibes" | "marimba" | "felt" | "piano" | "epiano" | "ocarina" | "flute" | "accordion" | "mandolin" | "pizz"
+  | "warmpad" | "glow" | "softbass" | "pluckbass" | "brushes" | "hand" | "weather";
 
 export const SOUNDS: { id: SnugSound; label: string; family: Instrument }[] = [
   { id: "musicbox", label: "Music box", family: "keys" },
@@ -12,10 +12,15 @@ export const SOUNDS: { id: SnugSound; label: string; family: Instrument }[] = [
   { id: "vibes", label: "Vibraphone", family: "keys" },
   { id: "marimba", label: "Marimba", family: "pluck" },
   { id: "felt", label: "Felt piano", family: "keys" },
+  { id: "piano", label: "Soft piano", family: "keys" },
   { id: "epiano", label: "Electric piano", family: "keys" },
   { id: "ocarina", label: "Ocarina", family: "lead" },
+  { id: "flute", label: "Flute", family: "lead" },
+  { id: "accordion", label: "Accordion", family: "lead" },
+  { id: "mandolin", label: "Mandolin", family: "pluck" },
   { id: "pizz", label: "Pizzicato strings", family: "pluck" },
   { id: "warmpad", label: "Warm pad", family: "pad" },
+  { id: "glow", label: "Glow pad", family: "pad" },
   { id: "softbass", label: "Soft bass", family: "bass" },
   { id: "pluckbass", label: "Bouncy bass", family: "bass" },
   { id: "brushes", label: "Brushes", family: "drums" },

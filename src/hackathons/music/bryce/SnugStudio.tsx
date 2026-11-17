@@ -75,6 +75,17 @@ export function SnugStudio() {
     playerRef.current?.load(song, muted);
   }, [song, muted]);
 
+  // A hot reload that changes the open song's file shows the new file, so old notes are never saved as a draft of it.
+  const shownFile = useRef({ id: songId, song: entry.song });
+  useEffect(() => {
+    const prev = shownFile.current;
+    shownFile.current = { id: songId, song: entry.song };
+    if (prev.id !== songId || prev.song === entry.song || JSON.stringify(prev.song) === JSON.stringify(entry.song)) return;
+    history.current = [];
+    setSong(entry.song);
+    setSelected(null);
+  }, [songId, entry.song]);
+
   useEffect(() => {
     try {
       if (edited) localStorage.setItem(DRAFT_KEY(songId), JSON.stringify({ base: JSON.stringify(entry.song), song }));
