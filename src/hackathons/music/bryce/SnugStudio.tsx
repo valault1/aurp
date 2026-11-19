@@ -3,7 +3,7 @@ import {
   Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, IconButton, MenuItem, Select,
   TextField, Tooltip, Typography, alpha, useTheme,
 } from "@mui/material";
-import { Code2, FileAudio, Minus, Music2, Pause, Play, Plus, RotateCcw, Square, Trash2, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from "lucide-react";
+import { Code2, FileAudio, LocateFixed, LocateOff, Minus, Music2, Pause, Play, Plus, RotateCcw, Square, Trash2, Undo2, Volume2, VolumeX, ZoomIn, ZoomOut } from "lucide-react";
 import { TRACK_COLORS } from "../val/PianoRoll";
 import { SnugRoll, type Selection } from "./SnugRoll";
 import { SNUG_SONGS } from "./songs";
@@ -45,6 +45,7 @@ export function SnugStudio() {
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
   const [beatWidth, setBeatWidth] = useState(40);
+  const [follow, setFollow] = useState(true);
   const [codeOpen, setCodeOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [rendering, setRendering] = useState(false);
@@ -249,6 +250,11 @@ export function SnugStudio() {
         <Box sx={{ display: "flex" }}>
           <IconButton size="small" aria-label="Zoom out" onClick={() => setBeatWidth((w) => Math.max(16, w - 8))}><ZoomOut size={16} /></IconButton>
           <IconButton size="small" aria-label="Zoom in" onClick={() => setBeatWidth((w) => Math.min(120, w + 8))}><ZoomIn size={16} /></IconButton>
+          <Tooltip title={follow ? "Following the play line (click to scroll freely)" : "Scrolling freely (click to follow the play line)"}>
+            <IconButton size="small" aria-label="Follow the play line" aria-pressed={follow} color={follow ? "primary" : "default"} onClick={() => setFollow((f) => !f)}>
+              {follow ? <LocateFixed size={16} /> : <LocateOff size={16} />}
+            </IconButton>
+          </Tooltip>
         </Box>
         <Box sx={{ flex: 1 }} />
         <Tooltip title="Undo (Ctrl+Z)">
@@ -338,6 +344,7 @@ export function SnugStudio() {
           setStarted(true);
         }}
         getBeat={getBeat}
+        follow={follow}
       />
 
       <Typography variant="body2" color="text.secondary">

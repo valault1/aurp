@@ -8,6 +8,8 @@ import { movingHouseWaltz } from "./movingHouseWaltz";
 import { noonPatch } from "./noonPatch";
 import { puddleHop } from "./puddleHop";
 import { rainKalimba } from "./rainKalimba";
+import { rainKalimbaEnding } from "./rainKalimbaEnding";
+import { rainKalimbaSwap } from "./rainKalimbaSwap";
 import { rainLongWay } from "./rainLongWay";
 import { rainOnTheQuilt } from "./rainOnTheQuilt";
 import { seasideTown } from "./seasideTown";
@@ -18,6 +20,8 @@ export const SNUG_SONGS: { id: string; file: string; song: SnugSong }[] = [
   { id: "rainOnTheQuilt", file: "rainOnTheQuilt.ts", song: rainOnTheQuilt },
   { id: "rainLongWay", file: "rainLongWay.ts", song: rainLongWay },
   { id: "rainKalimba", file: "rainKalimba.ts", song: rainKalimba },
+  { id: "rainKalimbaEnding", file: "rainKalimbaEnding.ts", song: rainKalimbaEnding },
+  { id: "rainKalimbaSwap", file: "rainKalimbaSwap.ts", song: rainKalimbaSwap },
   { id: "afterTheRain", file: "afterTheRain.ts", song: afterTheRain },
   { id: "puddleHop", file: "puddleHop.ts", song: puddleHop },
   { id: "tenOClockThread", file: "tenOClockThread.ts", song: tenOClockThread },

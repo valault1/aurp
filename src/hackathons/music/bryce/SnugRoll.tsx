@@ -40,6 +40,8 @@ interface Props {
   onSeek: (beat: number) => void;
   /** Playhead position in beats, or null when stopped. Polled every frame. */
   getBeat: () => number | null;
+  /** Keep the playhead in view while playing; off lets the player scroll anywhere. */
+  follow: boolean;
 }
 
 function updateNote(song: SnugSong, track: number, index: number, patch: Partial<Note>): SnugSong {
@@ -53,7 +55,7 @@ function updateNote(song: SnugSong, track: number, index: number, patch: Partial
 
 type Drag = { mode: "move" | "resize"; track: number; index: number; origStart: number; origLength: number; origRow: number; x: number; y: number };
 
-interface LaneProps extends Omit<Props, "beatWidth" | "onSeek" | "getBeat"> {
+interface LaneProps extends Omit<Props, "beatWidth" | "onSeek" | "getBeat" | "follow"> {
   lane: Lane;
   bw: number;
   /** The track a click on an empty cell of this lane wakes up when it is not already active. */
@@ -232,7 +234,7 @@ function LaneGrid({ lane, song, activeTrack, selected, bw, wake, onEdit, onSelec
   );
 }
 
-export function SnugRoll({ song, activeTrack, selected, beatWidth: bw, onEdit, onSelect, onActiveTrack, onPreview, onSeek, getBeat }: Props) {
+export function SnugRoll({ song, activeTrack, selected, beatWidth: bw, onEdit, onSelect, onActiveTrack, onPreview, onSeek, getBeat, follow }: Props) {
   const theme = useTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -278,7 +280,7 @@ export function SnugRoll({ song, activeTrack, selected, beatWidth: bw, onEdit, o
         el.dataset.on = beat !== null && beat >= Number(el.dataset.start) && beat < Number(el.dataset.end) ? "1" : "0";
       });
       const sc = scrollRef.current;
-      if (sc && beat !== null && !dragging.current) {
+      if (follow && sc && beat !== null && !dragging.current) {
         const x = LABEL_W + beat * bw;
         if (x < sc.scrollLeft + LABEL_W || x > sc.scrollLeft + sc.clientWidth - 40) sc.scrollLeft = x - LABEL_W - 40;
       }
@@ -286,7 +288,7 @@ export function SnugRoll({ song, activeTrack, selected, beatWidth: bw, onEdit, o
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [getBeat, bw]);
+  }, [getBeat, bw, follow]);
 
   return (
     <Box
